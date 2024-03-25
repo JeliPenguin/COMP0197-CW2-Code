@@ -84,7 +84,14 @@ at the end of each epoch.
 
 Again (provided you have trained models) you can run test.py to run these functions for both models.
 
+## Transfer learning : Integration with a pre-trained model
 
+Just a quick comment on this: There are a couple of ways we could integrate these models with a pre-trianed model to 
+complete the project task. Both would involve using only the decoder component of the segnet as a segmentation head:
+1. Match a pre-trained encoder with decoder from segnet model and fine-tune ALL params on Oxford Pets as we did here
+2. Match a pre-trained encoder with decoder from segnet model and fine-tune ONLY segnet params on Oxford Pets as we did here
+
+The pre-trained model could be the encoder part of a masked auto-encoder trained on ImageNet-1k for example.
 
 
 
