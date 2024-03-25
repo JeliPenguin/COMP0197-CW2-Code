@@ -4,6 +4,7 @@ import metrics
 import fetch_Oxford_IIIT_Pets as OxfordPets
 import torch
 import torch.nn as nn
+import torchvision
 
 USE_TORCH_METRICS = True
 if USE_TORCH_METRICS:
@@ -96,6 +97,40 @@ def test_performance(model_dict,test_loader):
             print("Test Dataset Accuracy")
             print(f"Custom IoU Accuracy: {custom_iou_tensor.mean():.4f}")
 
+def show_examples(model_dict,test_loader):
+
+    (test_inputs, test_targets) = next(iter(test_loader))
+
+    # Inspecting input images
+    input_grid = torchvision.utils.make_grid(test_inputs, nrow=8)
+    core.t2img(input_grid).show()
+
+    # Inspecting the segmentation masks corresponding to the input images
+    #
+    # When plotting the segmentation mask, we want to convert the tensor
+    # into a float tensor with values in the range [0.0 to 1.0]. However, the
+    # mask tensor has the values (0, 1, 2), so we divide by 2.0 to normalize.
+    targets_grid = torchvision.utils.make_grid(test_targets / 2.0, nrow=8)
+    core.t2img(targets_grid).show()
+
+
+    # Get segmentation mask predicted by the model:
+    model = model_dict['model']
+    core.to_device(model)
+    model.eval()
+    predictions = model(core.to_device(test_inputs))
+    # Apply softmax
+    predictions = nn.Softmax(dim=1)(predictions)
+    # Get label - max probability (ties get broken as first element with max value)
+    predicted_labels = predictions.argmax(dim=1)
+    # Add a value 1 dimension at dim=1
+    predicted_labels = predicted_labels.unsqueeze(1)
+    # print("pred_labels.shape: {}".format(pred_labels.shape))
+    predicted_mask = predicted_labels.to(torch.float)
+
+    predicted_mask_grid = torchvision.utils.make_grid(predicted_mask / 2.0, nrow=8)
+    core.t2img(predicted_mask_grid ).show()
+
 
 if __name__ == '__main__':
 
@@ -104,11 +139,11 @@ if __name__ == '__main__':
    _, testset = OxfordPets.augmented()
 
    test_loader = torch.utils.data.DataLoader(testset,
-                                             batch_size=4,
+                                             batch_size=16,
                                              shuffle=False)
 
 
-   # Define the two models:
+   # Define the two models [this assumes you have saved models from training in the output dir]
    model_1 = {'name': "SegNet Standard Model",
             'model': segnet.ImageSegmentation(kernel_size=3),
             'checkpt': "./output/segnet_standard/segnet.pt"}
@@ -129,3 +164,8 @@ if __name__ == '__main__':
 
         # Accuracy of the model 2
         test_performance(model_2,test_loader)
+
+        # Dislplay some examples of predicitons + ground truth:
+        show_examples(model_1,test_loader)
+
+        show_examples(model_2,test_loader)
