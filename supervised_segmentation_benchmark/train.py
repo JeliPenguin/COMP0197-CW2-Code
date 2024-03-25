@@ -175,25 +175,14 @@ if __name__ == '__main__':
 
     (test_inputs, test_targets) = next(iter(test_loader))
 
-    # Train our model for 20 epochs, and record the following:
+    # The code below trains both models consecutively. The following measures are displayed:
     #
     # 1. Training Loss
-    # 2. Test accuracy metrics for a single batch (21 images) of test images. The following
+    # 2. Test accuracy metrics for a single batch (16 images) of test images. The following
     #    metrics are computed:
     #   2.1. Pixel Accuracy
     #   2.2. IoU Accuracy (weighted)
     #   2.3. Custom IoU Accuracy
-    #
-    # We also plot the following for each of the 21 images in the validation batch:
-    # 1. Input image
-    # 2. Ground truth segmentation mask
-    # 3. Predicted segmentation mask
-    #
-    # so that we can visually inspect the model's progres and determine how well the model
-    # is doing qualitatively. Note that the validation metrics on the set of 21 images in
-    # the validation set is displayed inline in the notebook only for the last training
-    # epoch.
-    #
 
 
     # Run standard segnet model:
