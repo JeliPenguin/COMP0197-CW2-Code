@@ -2,11 +2,13 @@
 Src : https://github.com/dhruvbird/ml-notebooks/blob/main/pets_segmentation/oxford-iiit-pets-segmentation-using-pytorch-segnet-and-depth-wise-separable-convs.ipynb
 Training utility code
 """
+import os
 import torch
 import torch.nn as nn
 import utils.core as core
 import utils.metrics as metrics
 import segnet
+import utils.fetch_Oxford_IIIT_Pets as OxfordPets
 
 
 
@@ -91,6 +93,7 @@ def train_loop(model, loader, test_data, epochs, optimizer, scheduler, save_path
 
         print("")
 
+
 if __name__ == '__main__':
 
     model = segnet.ImageSegmentation(kernel_size=3)
@@ -99,3 +102,32 @@ if __name__ == '__main__':
     # Optimizer and Scheduler:
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.7)
+
+    # Create training set loader
+    trainset, _ = OxfordPets.augmented()
+
+    train_loader = torch.utils.data.DataLoader(trainset,
+                                               batch_size=4,
+                                               shuffle=True)
+
+    # Train our model for 20 epochs, and record the following:
+    #
+    # 1. Training Loss
+    # 2. Test accuracy metrics for a single batch (21 images) of test images. The following
+    #    metrics are computed:
+    #   2.1. Pixel Accuracy
+    #   2.2. IoU Accuracy (weighted)
+    #   2.3. Custom IoU Accuracy
+    #
+    # We also plot the following for each of the 21 images in the validation batch:
+    # 1. Input image
+    # 2. Ground truth segmentation mask
+    # 3. Predicted segmentation mask
+    #
+    # so that we can visually inspect the model's progres and determine how well the model
+    # is doing qualitatively. Note that the validation metrics on the set of 21 images in
+    # the validation set is displayed inline in the notebook only for the last training
+    # epoch.
+    #
+    save_path = os.path.join("..\\data\\", "segnet_basic_training_progress_images")
+    train_loop(model,train_loader, None, (1, 21), optimizer, scheduler, save_path)
