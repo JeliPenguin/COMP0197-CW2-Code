@@ -112,8 +112,8 @@ def augmented():
     :return: trainset,testset (torchvision datasets)
     """
 
-    #download_images()
-    #download_annotations()
+    download_images()
+    download_annotations()
 
     # Fetch Oxford IIIT Pets Segmentation dataset using torchvision:
     root = os.getcwd()

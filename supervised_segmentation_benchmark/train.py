@@ -114,7 +114,7 @@ def train_loop(model, loader, test_data, epochs, optimizer, scheduler,output_pat
         T = time.time() - start_time
         print(f"[Elapsed time:{T:0.1f}][Epoch: {epoch:02d}][Learning Rate: {optimizer.param_groups[0]['lr']}]")
         train_model(epoch,model, loader, optimizer)
-        core.save_model_checkpoint(model, output_path + "/segnet.pt")
+        torch.save(model.state_dict(), os.path.join(output_path,"segnet.pt"))
         with torch.inference_mode():
             # Test set performance report #
             #core.to_device(model.eval())
@@ -147,7 +147,7 @@ def train_loop(model, loader, test_data, epochs, optimizer, scheduler,output_pat
                 report = f'[Epoch: {epoch:02d}] : Custom-IoU: {custom_iou:.4f}]'
                 print(report)
 
-
+        torch.save(model.state_dict(), os.path.join(output_path, "segnet.pt"))
 
         if scheduler is not None:
             scheduler.step()
@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
     # Run standard segnet model:
     model = segnet.ImageSegmentation(kernel_size=3)
-    # core.to_device(model)
+
     model.to(device)
 
     # Optimizer and Scheduler:
@@ -195,12 +195,12 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.7)
 
     save_path = os.path.join("output", "segnet_standard")
-    #train_loop(model,train_loader, (test_inputs, test_targets), (1, 21), optimizer, scheduler, save_path)
+    train_loop(model,train_loader, (test_inputs, test_targets), (1, 21), optimizer, scheduler, save_path)
 
 
     # Run segnet + DSC:
     model = segnet.ImageSegmentationDSC(kernel_size=3)
-    # core.to_device(model)
+
     model.to(device)
 
     # Optimizer and Scheduler:
@@ -208,4 +208,4 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.7)
 
     save_path = os.path.join("output", "segnet_dsc")
-    train_loop(model, train_loader, (test_inputs, test_targets), (1,5), optimizer, scheduler, save_path)
+    train_loop(model, train_loader, (test_inputs, test_targets), (1,2), optimizer, scheduler, save_path)
