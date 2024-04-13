@@ -183,6 +183,22 @@ class VisionTransformer(nn.Module):
         # Initialize weights
         self.apply(self.init_weights_custom)
 
+    def init_weights_custom(self, m):
+        """
+        Initializes weights of the VisionTransformer module.
+
+        Arguments:
+            m (nn.Module): A module within the VisionTransformer
+        """
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
     def forward(self, input_x):
         """
         Forward pass of the VisionTransformer.
