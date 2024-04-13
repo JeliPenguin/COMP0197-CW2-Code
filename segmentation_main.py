@@ -2,11 +2,14 @@ import torch
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import DatasetFolder
 from torchvision.transforms import transforms
+from torchvision.utils import make_grid
 from torch import optim
 from torch.nn import CrossEntropyLoss
 from torch.nn.functional import interpolate
 from PIL import Image
 from torchvision.datasets import VisionDataset
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 
 from vit import VisionTransformer
@@ -93,17 +96,44 @@ class OxfordPets(VisionDataset):
     def __len__(self):
         return len(self.images)
 
+def iou_score(output, target, num_classes=3):
+    smooth = 1e-6
+    ious = []
+    output = torch.argmax(output, dim=1).data.cpu().numpy()
+    target = target.data.cpu().numpy()
+
+    for cls in range(num_classes):
+        output_ = output == cls
+        target_ = target == cls
+        intersection = (output_ & target_).sum()
+        union = (output_ | target_).sum()
+        iou = (intersection + smooth) / (union + smooth)
+        ious.append(iou)
+
+    return sum(ious) / num_classes
+
+def imshow(inp, title=None):
+    inp = inp.numpy().transpose((1, 2, 0))
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    inp = std * inp + mean
+    inp = np.clip(inp, 0, 1)
+    plt.imshow(inp)
+    if title is not None:
+        plt.title(title)
+    plt.pause(0.001)
+
 def main():
     # Define the transformations for the images
     transform = transforms.Compose([
-        transforms.Resize((32, 32)),  # Resize images to 32x32
-        transforms.ToTensor(),  # Convert images to PyTorch tensors
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize images
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Define the transformations for the masks
     target_transform = transforms.Compose([
-        transforms.Resize((32, 32), interpolation=Image.NEAREST),  # Resize masks to 32x32
+        transforms.Resize((32, 32), interpolation=Image.NEAREST),
     ])
 
     # Load the Oxford-IIIT Pet Dataset
@@ -138,41 +168,40 @@ def main():
     early_stopping = EarlyStopping(patience=7, verbose=True)
 
     # Train the model
-    for epoch in range(100):  # Number of epochs
-        print(f"Training epoch: {epoch + 1}")
+    for epoch in range(100):
+        print(f"Training epoch: {epoch}")
         model.train()
+        train_loss = 0
+        iou_train = 0
         for inputs, labels in train_dataloader:
             outputs = model(inputs)
-            
-            # Check dimensions and adjust if necessary
-            if labels.dim() == 4 and labels.size(1) == 1:
-                labels = labels.squeeze(1)  # Remove channel dimension if it is 1
-            
-            # Compute loss
             loss = criterion(outputs, labels)
-
-            # Backward pass and optimization
-            optimizer.zero_grad()  # Clear gradients before backward to avoid accumulation
+            iou = iou_score(outputs, labels, num_classes=3)
+            iou_train += iou
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            train_loss += loss.item()
 
-        # Evaluate the model
-        print(f"Evaluating epoch: {epoch + 1}")
+        train_loss /= len(train_dataloader)
+        iou_train /= len(train_dataloader)
+
+        print(f"Evaluating epoch: {epoch}")
         model.eval()
         val_loss = 0
+        iou_val = 0
         with torch.no_grad():
             for inputs, labels in val_dataloader:
                 outputs = model(inputs)
-                
-                # Adjust labels for evaluation if necessary
-                if labels.dim() == 4 and labels.size(1) == 1:
-                    labels = labels.squeeze(1)  # Remove channel dimension if it is 1
-
                 loss = criterion(outputs, labels)
+                iou = iou_score(outputs, labels, num_classes=3)
+                iou_val += iou
                 val_loss += loss.item()
 
         val_loss /= len(val_dataloader)
-        print(f'Epoch {epoch+1}, Loss: {loss.item()}, Validation Loss: {val_loss}')
+        iou_val /= len(val_dataloader)
+
+        print(f'Epoch {epoch+1}, Train Loss: {train_loss}, Train IoU: {iou_train}, Val Loss: {val_loss}, Val IoU: {iou_val}')
 
         # Early stopping
         early_stopping(val_loss, model)
@@ -182,3 +211,12 @@ def main():
 
     # Load the last checkpoint with the best model
     model.load_state_dict(torch.load('checkpoint.pt'))
+
+    model.eval()
+    with torch.no_grad():
+        inputs, labels = next(iter(val_dataloader))
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+
+        out = make_grid(inputs)
+        imshow(out, title=[f'pred: {x}, true: {y}' for x, y in zip(preds, labels)])
