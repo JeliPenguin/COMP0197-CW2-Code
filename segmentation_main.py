@@ -18,7 +18,7 @@ class EarlyStopping:
         Args:
             patience (int): How long to wait after last time validation loss improved.
                             Default: 7
-            verbose (bool): If True, prints a message for each validation loss improvement. 
+            verbose (bool): If True, prints a message for each validation loss improvement.
                             Default: False
             delta (float): Minimum change in the monitored quantity to qualify as an improvement.
                             Default: 0
@@ -59,18 +59,34 @@ class OxfordPets(VisionDataset):
     def __init__(self, root, transform=None, target_transform=None):
         super().__init__(root, transform=transform, target_transform=target_transform)
 
-        self.images = list(sorted(os.listdir(os.path.join(root, "images"))))
-        self.masks = list(sorted(os.listdir(os.path.join(root, "annotations", "trimaps"))))
+        # Filter out hidden files that start with '._'
+        self.images = [img for img in sorted(os.listdir(os.path.join(root, "images"))) if img.endswith(".jpg") and not img.startswith("._")]
+        self.masks = [m for m in sorted(os.listdir(os.path.join(root, "annotations", "trimaps"))) if m.endswith(".png") and not m.startswith("._")]
+
+        if len(self.images) != len(self.masks):
+            print("Warning: The number of images does not match the number of masks.")
+        print(f"Number of images: {len(self.images)}, Number of masks: {len(self.masks)}")
+        
+        # Print first 5 pairs to check for correct alignment
+        for i in range(min(5, len(self.images))):  # Print first 5 pairs
+            print(f"Image file: {self.images[i]}, Mask file: {self.masks[i]}")
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.root, "images", self.images[idx])
         mask_path = os.path.join(self.root, "annotations", "trimaps", self.masks[idx])
         img = Image.open(img_path).convert("RGB")
-        # Subtract 1 from the mask to match the labels expected by our model
-        mask = Image.open(mask_path) - 1
+        mask = Image.open(mask_path).convert("L")  # Ensure mask is loaded as grayscale
+
+        # Convert the mask to a tensor and subtract 1
+        mask = torch.tensor(np.array(mask), dtype=torch.long).unsqueeze(0) - 1
 
         if self.transform:
-            img, mask = self.transform(img, mask)
+            img = self.transform(img)
+        if self.target_transform:
+            mask = self.target_transform(mask)
+        
+        # Squeeze to remove the channel dimension because cross_entropy does not expect it
+        mask = mask.squeeze(0)
 
         return img, mask
 
@@ -78,15 +94,20 @@ class OxfordPets(VisionDataset):
         return len(self.images)
 
 def main():
-    # Define the transformations for the dataset
+    # Define the transformations for the images
     transform = transforms.Compose([
         transforms.Resize((32, 32)),  # Resize images to 32x32
         transforms.ToTensor(),  # Convert images to PyTorch tensors
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize images
     ])
 
+    # Define the transformations for the masks
+    target_transform = transforms.Compose([
+        transforms.Resize((32, 32), interpolation=Image.NEAREST),  # Resize masks to 32x32
+    ])
+
     # Load the Oxford-IIIT Pet Dataset
-    dataset = OxfordPets(root='./', transform=transform)
+    dataset = OxfordPets(root='./', transform=transform, target_transform=target_transform)
 
     # Split the dataset into training and validation sets
     train_size = int(0.8 * len(dataset))
@@ -118,27 +139,35 @@ def main():
 
     # Train the model
     for epoch in range(100):  # Number of epochs
+        print(f"Training epoch: {epoch + 1}")
         model.train()
         for inputs, labels in train_dataloader:
-            # Forward pass
             outputs = model(inputs)
-
+            
+            # Check dimensions and adjust if necessary
+            if labels.dim() == 4 and labels.size(1) == 1:
+                labels = labels.squeeze(1)  # Remove channel dimension if it is 1
+            
             # Compute loss
             loss = criterion(outputs, labels)
 
             # Backward pass and optimization
+            optimizer.zero_grad()  # Clear gradients before backward to avoid accumulation
             loss.backward()
             optimizer.step()
 
-            # Zero the gradients
-            optimizer.zero_grad()
-
         # Evaluate the model
+        print(f"Evaluating epoch: {epoch + 1}")
         model.eval()
         val_loss = 0
         with torch.no_grad():
             for inputs, labels in val_dataloader:
                 outputs = model(inputs)
+                
+                # Adjust labels for evaluation if necessary
+                if labels.dim() == 4 and labels.size(1) == 1:
+                    labels = labels.squeeze(1)  # Remove channel dimension if it is 1
+
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
 
@@ -153,6 +182,3 @@ def main():
 
     # Load the last checkpoint with the best model
     model.load_state_dict(torch.load('checkpoint.pt'))
-
-if __name__ == '__main__':
-    main()

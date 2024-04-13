@@ -150,6 +150,8 @@ class VisionTransformer(nn.Module):
 
         super().__init__()
 
+        self.classes_num = classes_num
+
         # Compute the number of patches
         num_patches = (size_image // size_patch) ** 2
 
@@ -178,7 +180,7 @@ class VisionTransformer(nn.Module):
         self.norm_final = nn.LayerNorm(dimension_embed, eps=1e-06)
 
         # Linear layer for classification, outputting a segmentation map
-        self.head_linear = nn.Linear(dimension_embed, classes_num)
+        self.head_linear = nn.Linear(dimension_embed, classes_num * size_image * size_image)
 
         # Initialize weights
         self.apply(self.init_weights_custom)
@@ -235,4 +237,4 @@ class VisionTransformer(nn.Module):
         x = x[:, 0]
 
         # Reshape the output to the shape of the input image
-        return self.head_linear(x).view(b, 3, input_x.shape[2], input_x.shape[3])
+        return self.head_linear(x).view(b, self.classes_num, input_x.shape[2], input_x.shape[3])
