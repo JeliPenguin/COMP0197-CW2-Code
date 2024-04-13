@@ -23,7 +23,9 @@ class PatchCreator(nn.Module):
             channels_input (int): Number of channels in the input images
             embed_dimension (int): Dimensionality of the patch embeddings
         """
+
         super().__init__()
+
         self.patch = nn.Conv2d(
             in_channels=channels_input,  # Number of input channels
             out_channels=embed_dimension,  # Dimension of the embedding space
@@ -41,7 +43,9 @@ class PatchCreator(nn.Module):
         Returns:
             torch.Tensor: Embedded patches
         """
+
         patches = self.patch(input_x).flatten(2).transpose(1, 2)
+
         return patches
 
 class TransformerAttentionBlock(nn.Module):
@@ -62,7 +66,9 @@ class TransformerAttentionBlock(nn.Module):
             heads_num (int): Number of heads in the multi-head attention mechanism
             dimension_hidden (int): Dimensionality of the hidden layer in the feed-forward network
         """
+
         super().__init__()
+
         self.norm_pre = nn.LayerNorm(dimension_embed, eps=1e-06)
 
         # Multi-head self-attention mechanism
@@ -95,6 +101,7 @@ class TransformerAttentionBlock(nn.Module):
         Returns:
             torch.Tensor: Output tensor
         """
+
         norm_x = self.norm_pre(input_x)
 
         # Apply multi-head attention; ignore attention weights returned
@@ -107,11 +114,11 @@ class TransformerAttentionBlock(nn.Module):
 
 class VisionTransformer(nn.Module):
     """
-    Implements a Vision Transformer (ViT) model for image classification.
+    Implements a Vision Transformer (ViT) model for semantic segmentation.
 
     The model applies a convolutional layer to create flattened, embedded patches from input images,
     adds a class token and positional embeddings, and processes these through a sequence of Transformer
-    attention blocks. The output of the class token is then used for classification.
+    attention blocks. The output is then reshaped to the shape of the input image for segmentation.
     """
 
     def __init__(
@@ -124,7 +131,7 @@ class VisionTransformer(nn.Module):
         heads_number=12,
         dimension_hidden=1536,
         dropout_rate=0.0,
-        classes_num=10
+        classes_num=3  # pet pixel, background pixel, and border region pixel
     ):
         """
         Initializes the VisionTransformer module.
@@ -138,13 +145,15 @@ class VisionTransformer(nn.Module):
             heads_number (int): Number of heads in the Transformer's multi-head attention mechanism
             dimension_hidden (int): Dimensionality of the hidden layer in the Transformer's feed-forward network
             dropout_rate (float): Dropout rate applied in the Transformer
-            classes_num (int): Number of classes for the classification task
+            classes_num (int): Number of classes for the segmentation task
         """
+
         super().__init__()
 
         # Compute the number of patches
         num_patches = (size_image // size_patch) ** 2
 
+        # Patch creator module
         self.patches = PatchCreator(
             size_patch=size_patch,
             channels_input=channels_in,
@@ -154,7 +163,7 @@ class VisionTransformer(nn.Module):
         # Positional embeddings
         self.embedding_pos = nn.Parameter(torch.randn(1, num_patches + 1, dimension_embed))
 
-        # For Classification
+        # Class token
         self.token_cls = nn.Parameter(torch.randn(1, 1, dimension_embed))
 
         # Stack of attention blocks
@@ -162,33 +171,17 @@ class VisionTransformer(nn.Module):
             TransformerAttentionBlock(dimension_embed, dropout_rate, heads_number, dimension_hidden) for _ in range(layers_number)
         ])
 
-        # Dropout layer for the output of the positional embeddings
+        # Dropout layer
         self.dropout = nn.Dropout(dropout_rate)
 
         # Final layer normalization
         self.norm_final = nn.LayerNorm(dimension_embed, eps=1e-06)
 
-        # Linear layer for classification
+        # Linear layer for classification, outputting a segmentation map
         self.head_linear = nn.Linear(dimension_embed, classes_num)
 
         # Initialize weights
         self.apply(self.init_weights_custom)
-
-    def init_weights_custom(self, m):
-        """
-        Initializes weights of the VisionTransformer module.
-
-        Arguments:
-            m (nn.Module): A module within the VisionTransformer
-        """
-        if isinstance(m, nn.Linear):
-            nn.init.trunc_normal_(m.weight, std=.02)
-            if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
 
     def forward(self, input_x):
         """
@@ -198,8 +191,9 @@ class VisionTransformer(nn.Module):
             input_x (torch.Tensor): Input tensor
 
         Returns:
-            torch.Tensor: The logits tensor
+            torch.Tensor: The segmentation map
         """
+
         # Convert images into patch embeddings
         x = self.patches(input_x)
         b, n, _ = x.shape  # batch size, number of patches, embedding dimension
@@ -224,4 +218,5 @@ class VisionTransformer(nn.Module):
         # Take the output of the class token for classification
         x = x[:, 0]
 
-        return self.head_linear(x)
+        # Reshape the output to the shape of the input image
+        return self.head_linear(x).view(b, 3, input_x.shape[2], input_x.shape[3])
