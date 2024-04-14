@@ -21,23 +21,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-class MAE(nn.module):
-    def __init__(self,img_size = 32, channels= 3, num_classes =10, embed_dim=1024, patch_size=4, num_heads=12, encoder_depth=12, mlp_ratio=4, dropout=0.1):
-        super().__init__()
+default_args = {
+    'img_size': 224,
+    'P': 16
+    'C': 3
+    'num_heads': 10
+    ;
 
-        
+}
+
+
+
+class MAE(nn.module):
+    def __init__(self,args=default_args):
+                 
+                 
+                 img_size = args.image_size, channels= 3, num_classes =10, embed_dim=1024, patch_size=self.patch_size, num_heads=10, encoder_depth=12, mlp_ratio=4, dropout=0.1):
+       
 
         # standard for ViTs
+        self.patch_size = patch_size
         self.num_classes = num_classes
         self.encoder_depth = encoder_depth
         self.embed_dim = embed_dim # i.e.  encoder width
         self.num_heads = num_heads
         self.mlp_ratio = 4
         self.dropout = 0.1
-        self.flat_image_patch_size = patch_size**2 * channels
+        self.flat_image_patch_size = self.patch_size**2 * channels
         
         # encoder 
-        self.embed_patch_encoder= embed_patch(img_size,patch_size,channels,embed_dim,mae=False,cls=True)
+        self.embed_patch_encoder= Embedder(img_size,patch_size,channels,embed_dim,mae=False,cls=True)
         self.encoder= nn.Sequential(*[TransformerEncoderBlock(embed_dim=self.embed_dim,num_heads=num_heads , mlp_ratio = 4.0, dropout=0.1)
                                      for l in range(self.encoder_depth)])
         self.encoder_norm = nn.LayerNorm(self.embed_dim)
@@ -60,7 +73,7 @@ class MAE(nn.module):
         self.mask_token= nn.Parameter(torch.zeros(1, 1, self.decoder_width))
         self.n_mask_tokens = round(self.embed_patch.seq_len * self.mask_ratio)
 
-        self.decoder_embed_patch = embed_patch(img_size,patch_size,channels,self.decoder_width,decoder=True) # don't 'linearly project' patches just add positional embedding
+        self.decoder_embed_patch = Embedder(img_size,patch_size,channels,self.decoder_width,decoder=True) # don't 'linearly project' patches just add positional embedding
         self.decoder = nn.Sequential(*[TransformerEncoderBlock(embed_dim=self.decoder_width,num_heads=num_heads , mlp_ratio = 4.0, dropout=0.1)
                                      for l in range(self.decoder_depth)])
         self.decoder_norm = nn.LayerNorm(self.decoder_width)
@@ -70,7 +83,7 @@ class MAE(nn.module):
         
 
         #decoder to image reconstruction
-        self.dec_to_image_patch = nn.Linear(self.decoder_depth,self.flaten_image_patch_size, bias=True) 
+        self.dec_to_image_patch = nn.Linear(self.decoder_depth,self.flat_image_patch_size, bias=True) 
 
         self.apply(self._init_weights)
         self.initialize_params()
@@ -86,9 +99,12 @@ class MAE(nn.module):
 
     def forward(self,x):
         # input should be images of shape [batch_size, C, H,W ]
+        
         x = self.embed_patch_encoder(x,cls=True) # converts into patches, embeds patches, append cls token , then add positional embedding
 
-        x, unshuffle_indices = self.rand_shuffle_and_sample(x)
+        
+        x, unshuffle_indices, mask_idxs = self.rand_shuffle_and_sample(x)
+
         x= self.encoder(x)
         x = self.encoder_norm(x)
         #encoder and decoder have different depths - linear transformation to handle this as in MAE paper 
@@ -106,8 +122,44 @@ class MAE(nn.module):
         # remove cls token: it's not a patch in the image but it's helped to aggregate the image
         x = x[:,1:, :]
 
+
         
-        return x
+        return x , mask_idxs # x is the reconstructed image, masks_idxs are the indices of the patches in each image
+    
+
+    def loss(self, images ,x,mask_idxs ):
+     #'target' is image before flattening, need to convert into patches
+    # loss on the MSE between reconstructed images and originals in pixel space but only on masked_patches
+    # mean loss on removed patches
+
+    
+    # images (torch.Tensor): Input tensor of shape [batch_size, 3, H, W].
+    # x are the pred should be of shape: [batch_size, sequence_length, P**2*C]
+        targs = self.img_to_patch(images, self.patch_size)
+        
+        # now we'll use torch.gather to get the masked patches efficiently
+
+        targs_masked_patches =  self.get_masked_patches(targs,mask_idxs)
+        x_masked_patches = self.get_masked_patches(x,mask_idxs)
+
+        return self.mse_per_patch(x_masked_patches,targs_masked_patches)
+
+
+    def mse_per_patch(self,preds,targs):
+        criterion = nn.MSELoss(reduction=None)
+        mse_per_patch = criterion(preds,targs).mean(dim=(0,1))
+        return mse_per_patch
+        
+
+
+
+    def get_masked_patches(self, x, mask_idxs):
+        # use torch.gather to do this efficiently
+        masked_patches = torch.gather(x,1, mask_idxs.unsqueeze(2).expand(-1,-1,x.shape[2]))
+        return masked_patches
+
+
+    
 
 
     # given a set of embedded patches 
@@ -127,6 +179,8 @@ class MAE(nn.module):
         # generate random permutations for each batch's token sequence
         shuffled_indices = torch.stack([torch.randperm(self.seq_len) for _ in range(batch_size)]) 
 
+        
+
         # shuffle the sequences using the generated indices
         shuffled_tokens = torch.stack([x[i, idx] for i, idx in enumerate(shuffled_indices)]) 
         # 'enumerating' on a tensor creates an iteratable and the first element of our iteration variable i indexes the batch, the second indexes the sequences dimension. stack 
@@ -134,12 +188,22 @@ class MAE(nn.module):
         # but with a permuation indexer. i.e. a list of all the indices for that dimension but in a different order. We do this for each batch. 
         # to unshuffle, use the inverse indices. This is the inverse of the permutation defined by shuffled indices
         
-        inverse_indices = torch.argsort(shuffled_indices, dim=1)
+        inverse_indices = torch.argsort(shuffled_indices, dim=1) 
 
         #take the first (1-mask_ratio) shuffled tokens 
         unmasked_patches = shuffled_tokens[:, :self.keep_len, :]
 
-        return unmasked_patches, inverse_indices
+       
+
+        # to do: make this more efficient - this func. is called each train iteration which happens way more often than evaluation
+    
+        # image masks for comparing reconstruction
+        from_idx = int(self.seq_len * (1-self.mask_ratio))  
+        masks_idxs = shuffled_indices[:, from_idx:] # indices of patches in each batch of the original image that are masked.  
+        # when evaluating you'lll have a sequence of the pure input image patches before encoder embeds them in
+        # then take this sequence of pure image patches[mask_ids]= 0 then plot images # these will be patched out images
+
+        return unmasked_patches, inverse_indices,  masks_idxs
 
     def add_mask_tokens_and_unshuffle(self,x, inverse_indices):
 
@@ -153,28 +217,56 @@ class MAE(nn.module):
         #unshuffle tokens (check size )
         x_with_masks_unshuffled = torch.stack([x_with_masks[i, idx] for i, idx in enumerate    (inverse_indices)])
         return x_with_masks_unshuffled
+    
 
 
 
 
-def img_to_patch(images, patch_size=4):
-    """
-    Converts a batch of images into a batch of sequences of flattened patches.
-
-    Args:
-        images (torch.Tensor): Input tensor of shape [batch_size, 3, H, W].
-        patch_size (int, optional): Size of each patch. Defaults to 4.
 
 
-    Returns:
-        torch.Tensor: Output tensor of shape [batch_size, HW / P^2, C * P^2].
-    """
+    def img_to_patch(self,images):
+        """
+        Converts a batch of images into a batch of sequences of flattened patches.
 
-    batch_size, c , h, w= images.shape
-    patches = images.unfold(2, patch_size, patch_size).unfold(3, patch_size, patch_size)
-    patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()
-    patches = patches.view(batch_size, -1, c * patch_size * patch_size)
-    return patches
+        Args:
+            images (torch.Tensor): Input tensor of shape [batch_size, 3, H, W].
+            patch_size (int, optional): Size of each patch. Defaults to 4.
+
+
+        Returns:
+            torch.Tensor: Output tensor of shape [batch_size, HW / P^2, C * P^2].
+        """
+
+        batch_size, c , h, w= images.shape
+        patches = images.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size)
+        patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()
+        patches = patches.view(batch_size, -1, c * self.patch_size * self.patch_size)
+        return patches
+    
+
+
+    # should take image size 
+    def patch_to_img(self, patches):
+        """
+        Converts a batch of patch embeddings back into a batch of images.
+
+        Args:
+            patch_embeddings (torch.Tensor): Input tensor of shape [batch_size, HW / P^2, C * P^2].
+            image_size (tuple, optional): Size of the original images (height, width). Defaults to (32, 32).
+            patch_size (int, optional): Size of each patch. Defaults to 4.
+
+        Returns:
+            torch.Tensor: Output tensor of shape [batch_size, 3, H, W].
+        """
+
+        batch_size, seq_len, channels = patches.shape 
+        height, width = self.image_size
+        channels_per_patch = channels // (self.patch_size * self.patch_size)
+
+        patches = patches.view(batch_size, height // self.patch_size, width // self.patch_size, channels_per_patch, self.patch_size, self.patch_size)
+        patches = patches.permute(0, 3, 1, 4, 2, 5).contiguous()
+        images = patches.view(batch_size, channels_per_patch, height, width)
+        return images
 
 
 # adds positional embedding after initial token embedding
@@ -186,7 +278,7 @@ class pos_embedder(nn.Module):
         self.sin_cos = sin_cos
         if sin_cos: # use sin-cos embedding from attention is all hou need
             self.pos_embed = nn.Parameter(self.sin_cos_pos_embed(), requires_grad=False)
-        else:
+        else: # elset trainable linear transformation
             self.pos_embed = nn.Parameter(torch.randn(seq_len, embed_dim))
 
     def forward(self,ins ):
@@ -210,8 +302,8 @@ class pos_embedder(nn.Module):
         return pos_encoding
 
 
-class embed_patch(nn.Module):
-    "Patch and position embedding for ViT"
+class Embedder( nn.Module):
+    "token and position embedding for transformer blocks"
 
     # uses our images to patches function.
     # use torch.einsum to embed patches in batches.
@@ -247,7 +339,7 @@ class embed_patch(nn.Module):
         #  if embedding for the decoder inputs , then inputs are already of shape [batch_size, sequence_length]
         # if you're embedding tokens for the decoder the don't need to convert image into patches. else
         if not self.decoder: # i.e. if embedding for the encoder 
-            patches =  img_to_patch(tokens,self.patch_size)
+            patches =  self.img_to_patch(tokens,self.patch_size)
             patch_embeds = self.patch_embed(patches)
         
         # add clstokens and positional embedding
@@ -345,6 +437,3 @@ class MLP_class_head(nn.Module):
 
 
 
-
-
-# 
