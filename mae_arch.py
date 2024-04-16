@@ -22,10 +22,26 @@ import numpy as np
 
 
 
+class DefaultArgs:
+    def __init__(self):
+        self.img_size = 64  # Adjusted for Tiny ImageNet
+        self.patch_size = 16 # You can experiment with smaller sizes, like 8, if desired
+        self.encoder_width = 512  # Adjusted for a smaller model
+        self.n_heads = 8  # Fewer heads given the reduced complexity
+        self.encoder_depth = 8  # Fewer layers
+        self.decoder_width = 256  # Adjusted decoder width
+        self.decoder_depth = 4  # Fewer layers in decoder
+        self.mlp_ratio = 4.0
+        self.dropout = 0.1
+        self.mask_ratio = 0.75
+        self.no_cls_token_encoder = False
+        self.no_cls_token_decoder = False
+        self.c = 3  # Number of color channels (RGB)
+
 
 
 class MAE(nn.Module):
-    def __init__(self,args=default_args):
+    def __init__(self,args=DefaultArgs):
         super().__init__()
         self.args =args 
                  
@@ -150,29 +166,29 @@ class MAE(nn.Module):
         Args:
             images (torch.Tensor): The original batch of images, shape [batch_size, 3, H, W].
             mask_idxs (torch.Tensor): Indices of the masked patches, shape [batch_size, num_masked_patches].
-            patch_size (int): The size of each square patch.
+            patch_size (int): The size of each  patch.
 
         Returns:
-            torch.Tensor: A tensor of the same shape as images with masked areas set to zero.
+            torch.Tensor: A tensor of the same shape as images with masked patched set to zero.
         """
         batch_size, _, H, W = images.shape
         num_patches_h = H // self.args.patch_size
         num_patches_w = W // self.args.patch_size
         num_patches = num_patches_h * num_patches_w
 
-        # Initialize the mask for all patches as ones (nothing is masked)
+        # initialize the mask for all patches as ones (nothing is masked)
         patch_mask = torch.ones((batch_size, num_patches), dtype=torch.uint8, device=images.device)
 
-        # Set the masked patches to zero
+        # set the masked patches to zero, .scatter is a covnvenient functiob
         patch_mask.scatter_(1, mask_idxs, 0)
 
-        # Reshape to match the image layout
+        # reshape to match the image layout
         patch_mask = patch_mask.view(batch_size, num_patches_h, num_patches_w)
 
-        # Inflate the mask to the original image dimensions
+        # mask to the original image dimensions
         full_mask = patch_mask.repeat_interleave(patch_size, dim=1).repeat_interleave(patch_size, dim=2)
 
-        # Ensure the mask is broadcastable over the color channels
+        # make mask  broadcastable over the color channels
         full_mask = full_mask.unsqueeze(1).repeat(1, 3, 1, 1)  # Shape: [batch_size, 3, H, W]
 
         return full_mask
