@@ -24,7 +24,7 @@ import numpy as np
 
 class DefaultArgs:
     def __init__(self):
-        self.img_size = 64  # Adjusted for Tiny ImageNet
+        self.img_size = 64  # adjusted for Tiny ImageNet
         self.patch_size = 16 # You can experiment with smaller sizes, like 8, if desired
         self.encoder_width = 512  # Adjusted for a smaller model
         self.n_heads = 8  # Fewer heads given the reduced complexity
@@ -125,10 +125,10 @@ class MAE(nn.Module):
         if self.decoder_cls:
             x = x[:,1:, :]
         
-
-
         
-        return x , mask_idxs.to(device) # x is the reconstructed image, masks_idxs are the indices of the patches in each image
+        
+        
+        return x , mask_idxs.to(self.args.device) # x is the reconstructed image, masks_idxs are the indices of the patches in each image
     
 
     def loss(self, images ,x,mask_idxs):
@@ -177,7 +177,7 @@ class MAE(nn.Module):
         num_patches = num_patches_h * num_patches_w
 
         # initialize the mask for all patches as ones (nothing is masked)
-        patch_mask = torch.ones((batch_size, num_patches), dtype=torch.uint8, device=images.device)
+        patch_mask = torch.ones((batch_size, num_patches), dtype=torch.uint8, device=self.args.device)
 
         # set the masked patches to zero, .scatter is a covnvenient functiob
         patch_mask.scatter_(1, mask_idxs, 0)
@@ -262,7 +262,7 @@ class MAE(nn.Module):
         # add mask tokens to end 
         x_with_masks = torch.cat((x, mask_tokens), dim=1)
         #unshuffle tokens (check size )
-        x_with_masks_unshuffled = torch.stack([x_with_masks[i, idx] for i, idx in enumerate    (inverse_indices)])
+        x_with_masks_unshuffled = torch.stack([x_with_masks[i, idx] for i, idx in enumerate(inverse_indices)])
         return x_with_masks_unshuffled
     
 
@@ -560,5 +560,71 @@ class MLP_class_head(nn.Module):
         x= self.tanh(x)
         return x
     
+
+
+
+
+
+
+
+
+
+
+def visualize_comparisons(loader, model):
+    #compares masked original, image, autoencoder reconstruction
+    # on a batch of images
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+   
+    model.self.args.device = device
+    model.to(device)
+    model.eval()
+    with torch.no_grad():
+          batch = next(iter(loader))
+          images = batch[0].to(device)
+
+          decoder_output, mask_idxs = model(images)
+          reconstructions = model.reconstruct_image(decoder_output)
+        
+          masks = model.create_visual_mask(images, mask_idxs, 4)
+          masked_images = images * masks
+
+          #the number of examples to display (limited to a manageable number for visualization)
+          batch_size = images.size(0)
+          if batch_size > 4:
+              print("Batch size is too large for effective visualization. Reducing to 4 for display.")
+              batch_size = 4  # Adjust batch size here if needed
+
+          fig, axes = plt.subplots(batch_size, 3, figsize=(15, 5 * batch_size))  # 3 columns for each type of image
+
+          # no. of rows in plot is the no. of samples in batch
+          for i in range(batch_size):
+              imshow(masked_images[i], axes[i, 0])
+              imshow(reconstructions[i], axes[i, 1])
+              imshow(images[i], axes[i, 2])
+
+          # Labeling columns
+          columns = ['Masked Image', 'Reconstruction', 'Original Image']
+          for ax, col in zip(axes[0], columns):
+              ax.set_title(col)
+
+          plt.subplots_adjust(wspace=0.1, hspace=0.1)  # Adjust the spacing between images
+          plt.show()
+           # Show only one batch for demonstration
+
+def imshow(img, ax, mean,std):
+    # Helper function to unnormalize and show an image on a given Axes object.
+    mean = mean.view(3, 1, 1).to(device)
+    std = std.view(3, 1, 1).to(device)
+    img = img * std + mean  # Unnormalize and move to CPU
+    npimg = img.cpu().numpy()
+    ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
+    ax.axis('off')  # Hide axes ticks
+
+
+
+
+
+
+
 
 
