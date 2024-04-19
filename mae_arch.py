@@ -111,6 +111,8 @@ class MAE(nn.Module):
         x = self.encoder_norm(x)
         #encoder and decoder have different depths - linear transformation to handle this as in MAE paper 
         x= self.enc_to_dec(x) # this is our patch embedding for the decoder, no need to linearly project again. in self.embed_patch_decoder
+
+        # print(unshuffle_indices)
         x = self.add_mask_tokens_and_unshuffle(x,unshuffle_indices)
         
         # linear project just need pos
@@ -217,6 +219,8 @@ class MAE(nn.Module):
         # x should be of shape batch_size, seq_length, D]
         
         batch_size = x.shape[0]
+
+        # print(x.shape)
         
 
 
@@ -257,10 +261,14 @@ class MAE(nn.Module):
         # add mask tokens
         #we removed 
         #n_masktokens per batch 
+
         
-        mask_tokens = self.mask_token.repeat(x.shape[0],self.n_mask_tokens,1)
+        
+        mask_tokens = self.mask_token.repeat(x.shape[0],self.n_mask_tokens+1,1)
         # add mask tokens to end 
         x_with_masks = torch.cat((x, mask_tokens), dim=1)
+
+        # print(x_with_masks.shape)
         #unshuffle tokens (check size )
         x_with_masks_unshuffled = torch.stack([x_with_masks[i, idx] for i, idx in enumerate(inverse_indices)])
         return x_with_masks_unshuffled

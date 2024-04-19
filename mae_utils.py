@@ -8,7 +8,7 @@ import os
 # todo - make this more efficient - want to calculatete the mean and std of pixel values automatically
 # we do this but there must be a way to do this without creating so many loaders
 def get_loaders(args):
-    dataset_path = dataset_path = args.dataset_path
+    dataset_path = dataset_path = args.dataset
     
     # load data with basic transforms and compute mean and std of colour channels
 
@@ -36,8 +36,8 @@ def get_loaders(args):
         transforms.Normalize(mean=mean, std=std)
     ])
 
-    dataset = dataset.ImageFolder(root=dataset_path, transform= transform)
-    train_dataset, test_dataset = random_split(dataset_path, [train_size, test_size])
+    dataset = datasets.ImageFolder(root=dataset_path, transform= transform)
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     
     #
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
@@ -90,7 +90,7 @@ def save_config(args):
         args_dict = vars(args)
         # we've saved  two tensors to args. serialize and unserialize in config to model
         args_dict['mean_pixels'] = args.mean_pixels.tolist()
-        args_dict['std_pixels'] = args.std_pixls.tolist()
+        args_dict['std_pixels'] = args.std_pixels.tolist()
         
         json.dump(args_dict, f, indent=4)
 

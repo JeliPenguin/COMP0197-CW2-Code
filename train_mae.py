@@ -37,7 +37,7 @@ class Trainer:
         self.device = self.args.device 
         self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_loaders(self.args)
         # also gets means and stds for unnormalizing
-        print('Created dataset loaders using dataset in {self.args.dataset} ')
+        print(f'Created dataset loaders using dataset in {self.args.dataset} ')
 
 
         self.mae = MAE(self.args) 
@@ -47,7 +47,7 @@ class Trainer:
 
         self.base_lr = 1.5e-4
         self.lr = self.base_lr * (self.args.batch_size/256)
-        self.optimizer =torch.optim.AdamW(MAE.parameters(), lr=self.lr)
+        self.optimizer =torch.optim.AdamW(self.mae.parameters(), lr=self.lr)
 
 
         

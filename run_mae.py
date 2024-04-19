@@ -93,6 +93,7 @@ def args_parser():
 
 
     args = parser.parse_args()
+    print(args)
     return args
 
 
@@ -107,6 +108,7 @@ if __name__ == "__main__":
     
     
     args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
+    print(args.device)
 
 
     # directory for model checkpoints -
@@ -132,5 +134,5 @@ if __name__ == "__main__":
     print(f'Initialized_trainer')
     
     # useful to examine for each run, needed for plot_train
-    save_config(args)
-    trainer.train()
+    # save_config(args)
+    trainer.train_model()
