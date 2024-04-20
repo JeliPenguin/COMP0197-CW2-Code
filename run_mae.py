@@ -60,7 +60,7 @@ def args_parser():
 
 
     # data 
-    parser.add_argument('--dataset', type=str, required=True, help='Path to the pre-train dataset assumes')
+    parser.add_argument('--dataset', type=str, help='Path to the pre-train dataset assumes')
     
     # masked autoencoder arguments
     ## encoder 
