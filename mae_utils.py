@@ -91,9 +91,13 @@ def save_config(args):
         # we've saved  two tensors to args. serialize and unserialize in config to model
         args_dict['mean_pixels'] = args.mean_pixels.tolist()
         args_dict['std_pixels'] = args.std_pixels.tolist()
-        
-        json.dump(args_dict, f, indent=4)
 
+        # handle non serialiable objects specifically
+        if 'device' in args_dict:
+            args_dict['device'] = str(args.device)  # Convert device to string
+
+        json.dump(args_dict, f, indent=4)
+        
 def load_config(filename='config.json'):
     """
     Loads the configuration from a JSON file.
