@@ -73,9 +73,11 @@ def get_hugging_face_loaders(args):
 
 
     # Ensure the dataset is properly loaded with streaming set to True
-    train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+    # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+    train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
 
-    test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+    # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+    test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
 
 
     mean = torch.Tensor([0.485, 0.456, 0.406])

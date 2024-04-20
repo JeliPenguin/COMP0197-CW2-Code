@@ -23,6 +23,7 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 
+import time
 
 import os
 import datetime
@@ -51,8 +52,6 @@ class Trainer:
         
         self.checkpoint_dir = args.checkpoint_dir
         
-       
-
 
 
     def train_one_epoch(self,model, dataloader, optimizer, device, print_freq):
@@ -73,25 +72,29 @@ class Trainer:
             loss.backward()
             optimizer.step()
 
+            print("Batch: ",i," Time: ",datetime.datetime.now(), " Loss: ",loss.item())
+
 
             if (i + 1) % print_freq == 0:
                 
                 val_loss = self.validate(model, self.val_loader, self.device)
                 print(f' Iteration {i + 1}, Train Loss: {loss.item()} | Validation Loss:{val_loss}')
 
-        return total_loss / len(dataloader)
+        return total_loss / (i+1)
     
     def validate(self, model, dataloader, device):
         model.eval()
         total_loss = 0
+        count = 0
         with torch.no_grad():
             for images, _ in dataloader:
                 images = images.to(self.device)
                 reconstructed, mask_indices = model(images)
                 loss = model.loss(images, reconstructed, mask_indices)
                 total_loss += loss.item()
+                count += 1
 
-        return total_loss / len(dataloader)
+        return total_loss / count
     
 
 
@@ -110,9 +113,9 @@ class Trainer:
             print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss}, Validation Loss: {val_loss}")
 
             #  model checkpoint every epoch 
-            checkpoint_path = os.path.join(self.checkpoint_dir, f'model_epoch_{epoch+1}.pth')
+            checkpoint_path = os.path.join(self.checkpoint_dir, f'model.pth')
             torch.save(model.state_dict(), checkpoint_path)
-            print(f"Checkpoint saved to {checkpoint_path}")
+            # print(f"Checkpoint saved to {checkpoint_path}")
 
 
 
