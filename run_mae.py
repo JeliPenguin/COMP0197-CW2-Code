@@ -134,5 +134,5 @@ if __name__ == "__main__":
     print(f'Initialized_trainer')
     
     # useful to examine for each run, needed for plot_train
-    # save_config(args)
+    save_config(args)
     trainer.train_model()
