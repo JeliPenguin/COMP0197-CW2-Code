@@ -92,7 +92,7 @@ def get_hugging_face_loaders(args):
     test_loader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
-        collate_fn=lambda batch: collate_fn(batch, args)
+        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
     )
 
 
