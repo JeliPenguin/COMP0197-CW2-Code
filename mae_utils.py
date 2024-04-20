@@ -4,6 +4,9 @@ from torch.utils.data import DataLoader, Subset, random_split
 import numpy as np
 import json 
 import os 
+from datasets import load_dataset
+import torch
+from torch.utils.data import DataLoader
 
 # todo - make this more efficient - want to calculatete the mean and std of pixel values automatically
 # we do this but there must be a way to do this without creating so many loaders
@@ -42,6 +45,56 @@ def get_loaders(args):
     #
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+
+
+    return train_loader, test_loader, mean, std
+
+
+
+def collate_fn(batch,args,mean,std):
+    # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
+
+    transform = transforms.Compose([
+        transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
+        transforms.Resize((args.img_size, args.img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std)
+    ])
+    images, labels = [], []
+    for item in batch:
+        image = transform(item['image'])
+        label = torch.tensor(item['label'], dtype=torch.long)
+        images.append(image)
+        labels.append(label)
+    return torch.stack(images), torch.stack(labels)
+
+
+def get_hugging_face_loaders(args):
+
+
+    # Ensure the dataset is properly loaded with streaming set to True
+    train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+
+    test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+
+
+    mean = torch.Tensor([0.485, 0.456, 0.406])
+    
+    std = torch.Tensor([0.229, 0.224, 0.225])
+
+    # Setup DataLoader with the custom collate function
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        collate_fn=lambda batch: collate_fn(batch, args)
+    )
+
 
     return train_loader, test_loader, mean, std
 

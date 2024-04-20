@@ -28,31 +28,26 @@ import os
 import datetime
 import torch
 
-from mae_utils import get_loaders, calculate_mean_std
+from mae_utils import get_hugging_face_loaders,get_loaders
 from mae_arch import MAE
 
 class Trainer:
     def __init__(self,args):
         self.args = args
         self.device = self.args.device 
-        self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_loaders(self.args)
+        # self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_loaders(self.args)
+        self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(self.args)
         # also gets means and stds for unnormalizing
         print(f'Created dataset loaders using dataset in {self.args.dataset} ')
 
 
         self.mae = MAE(self.args) 
         self.mae.to(self.device)
-        
 
 
         self.base_lr = 1.5e-4
         self.lr = self.base_lr * (self.args.batch_size/256)
         self.optimizer =torch.optim.AdamW(self.mae.parameters(), lr=self.lr)
-
-
-        
-
-           
         
         self.checkpoint_dir = args.checkpoint_dir
         
