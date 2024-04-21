@@ -1,0 +1,35 @@
+{
+    "train_mode": "pretrain",
+    "colab": false,
+    "config": null,
+    "cuda": true,
+    "dataset": null,
+    "mask_ratio": 0.8,
+    "img_size": 128,
+    "c": 3,
+    "patch_size": 16,
+    "encoder_width": 1024,
+    "encoder_depth": 12,
+    "n_heads": 16,
+    "mlp_ratio": 4,
+    "dropout": 0.1,
+    "decoder_depth": 8,
+    "decoder_width": 512,
+    "no_cls_token_encoder": false,
+    "no_cls_token_decoder": false,
+    "n_epochs": 20,
+    "batch_size": 256,
+    "device": "cuda",
+    "run_id": "0232734",
+    "checkpoint_dir": "./MAE/0232734",
+    "mean_pixels": [
+        0.48500001430511475,
+        0.4560000002384186,
+        0.4059999883174896
+    ],
+    "std_pixels": [
+        0.2290000021457672,
+        0.2240000069141388,
+        0.22499999403953552
+    ]
+}

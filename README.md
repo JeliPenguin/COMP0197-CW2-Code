@@ -27,6 +27,12 @@ Install these with the following command:
 pip install torch torchvision matplotlib numpy
 ```
 
+### Install Git LFS:
+```bash
+sudo apt-get install git-lfs
+git lfs install
+```
+
 ## usage
 ### training
 `python run_mae.py --dataset /path/to/your/dataset'
@@ -37,12 +43,9 @@ pip install torch torchvision matplotlib numpy
 - `--img_size` (default: `224`): Dimensions of images to process. Ensure that this makes sense for the input dataset. 
 
 
-
-
 ### visualizing model reconstruction
 To visualize your MAEs reconstruction compared with the masked image and ground truth:
 `python plot_trained_mae.py --model path/to/your/model.pth --config path/to/your/config.json --dataset /path/to/your/dataset`
-
 
 
 
