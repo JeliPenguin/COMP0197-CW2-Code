@@ -7,6 +7,12 @@ import os
 from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
+import argparse
+from mae_arch import MAE
+
+mean = torch.Tensor([0.485, 0.456, 0.406])
+    
+std = torch.Tensor([0.229, 0.224, 0.225])
 
 # todo - make this more efficient - want to calculatete the mean and std of pixel values automatically
 # we do this but there must be a way to do this without creating so many loaders
@@ -78,11 +84,6 @@ def get_hugging_face_loaders(args):
 
     # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
     test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
-
-
-    mean = torch.Tensor([0.485, 0.456, 0.406])
-    
-    std = torch.Tensor([0.229, 0.224, 0.225])
 
     # Setup DataLoader with the custom collate function
     train_loader = DataLoader(
@@ -164,6 +165,7 @@ def load_config(filename='config.json'):
 
 
 def config_to_model(config):
+    config = load_config(config)
     args = argparse.Namespace(**config)
     
     #unserialize

@@ -1,83 +1,31 @@
 import torch
-import torchvision
-import torchvision.transforms as transforms
-
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import random_split
-from torch.optim.lr_scheduler import LambdaLR
-from torchvision.utils import save_image
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import BatchSampler, SequentialSampler
-
-from torchvision.datasets import ImageFolder
-from torchvision import transforms as T
-from torch.utils.data import DataLoader
-import time
-import datetime
-from torch.optim.lr_scheduler import LambdaLR
-
-
-
-from mae_arch import MAE
-
-
 import matplotlib.pyplot as plt
 import numpy as np
-
-from mae_utils import save_config,get_loaders, load_model
-
-import os
 import argparse
-import pdb
-import sys
-import pickle
-import logging
-import random
-import csv
-import math
-import json
-import copy
+from mae_utils import get_hugging_face_loaders, load_model,mean,std
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-
-
-
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument('model', help='path to a model file, to be loaded into pytorch')
-
-parser.add_argument('-d', '--dataset', type=str, help='path to the dataset of trials')
-parser.add_argument('-c', '--config', type=str, help='path to config file') # must be a .json file
-
-args = parser.parse_args()
-
-
-model, old_args = load_model(args.model ,args.config) #old args are the args used to train model in path
-
-
-
-
-
-def visualize_comparisons(loader, model):
+def visualize_comparisons(args,model):
     #compares masked original, image, autoencoder reconstruction
     # on a batch of images
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    _, test_loader, _, _ = get_hugging_face_loaders(args)
    
-    model.self.args.device = device
     model.to(device)
     model.eval()
     with torch.no_grad():
-          batch = next(iter(loader))
+          batch = next(iter(test_loader))
           images = batch[0].to(device)
+
 
           decoder_output, mask_idxs = model(images)
           reconstructions = model.reconstruct_image(decoder_output)
         
-          masks = model.create_visual_mask(images, mask_idxs, 4)
+          masks = model.create_visual_mask(images, mask_idxs, 16)
+
+          print(images.shape,masks.shape)
           masked_images = images * masks
 
           #the number of examples to display (limited to a manageable number for visualization)
@@ -103,16 +51,28 @@ def visualize_comparisons(loader, model):
           plt.show()
            # Show only one batch for demonstration
 
-def imshow(img, ax, mean,std):
+def imshow(img, ax):
     # Helper function to unnormalize and show an image on a given Axes object.
-    mean = mean.view(3, 1, 1).to(device)
-    std = std.view(3, 1, 1).to(device)
-    img = img * std + mean  # Unnormalize and move to CPU
+    mean_t = mean.view(3, 1, 1).to(device)
+    std_t = std.view(3, 1, 1).to(device)
+    img = img * std_t + mean_t  # Unnormalize and move to CPU
     npimg = img.cpu().numpy()
     ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
     ax.axis('off')  # Hide axes ticks
 
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', help='path to a model file, to be loaded into pytorch')
+    parser.add_argument('-c', '--config', type=str, help='path to config file') # must be a .json file
+
+    args = parser.parse_args()
+
+
+    model, old_args = load_model(args.model ,args.config) #old args are the args used to train model in path
+
+    visualize_comparisons(old_args,model)
 
 
 
