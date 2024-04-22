@@ -61,8 +61,9 @@ def collate_fn(batch,args,mean,std):
     # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
 
     transform = transforms.Compose([
-        transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
+        # transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
         transforms.Resize((args.img_size, args.img_size)),
+        transforms.Lambda(lambda x: x.convert("RGB")),  # Convert image to RGB
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ])

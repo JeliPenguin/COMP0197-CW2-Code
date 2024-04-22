@@ -67,7 +67,7 @@ def args_parser():
     # todo: get image size from image in loader
     parser.add_argument('--mask_ratio', type=float, default = 0.8,help='proportion of tokens masked')
     # parser.add_argument('--img_size',type = int, default=224, help='img_size H=W resolution of images input to encoder')
-    parser.add_argument('--img_size',type = int, default=128, help='img_size H=W resolution of images input to encoder')
+    parser.add_argument('--img_size',type = int, default=64, help='img_size H=W resolution of images input to encoder')
     parser.add_argument('--c',type=int, default= 3, help='number of colour channels. default 3 for RGB color')
     parser.add_argument('--patch_size', type=int, default=16)
     parser.add_argument('--encoder_width', type=int, default =1024,help='embedding dimension for encoder inputs')
@@ -88,7 +88,7 @@ def args_parser():
     parser.add_argument('--no_cls_token_encoder',action='store_true', help= 'No cls token prepended to embedded token inputsfor the encoder.')
     parser.add_argument('--no_cls_token_decoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the encoder.')
 
-    parser.add_argument('--n_epochs',type=int, default =15)
+    parser.add_argument('--n_epochs',type=int, default =200)
     parser.add_argument('--batch_size',type=int, default=256)
     # add an argument for a differnt test batch size
 

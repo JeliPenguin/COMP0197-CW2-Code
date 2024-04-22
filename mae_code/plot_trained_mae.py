@@ -23,7 +23,7 @@ def visualize_comparisons(args,model):
           decoder_output, mask_idxs = model(images)
           reconstructions = model.reconstruct_image(decoder_output)
         
-          masks = model.create_visual_mask(images, mask_idxs, 16)
+          masks = model.create_visual_mask(images, mask_idxs, args.patch_size)
 
           print(images.shape,masks.shape)
           masked_images = images * masks

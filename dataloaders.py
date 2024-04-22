@@ -14,7 +14,6 @@ std = torch.Tensor([0.229, 0.224, 0.225])
 def gen_transform(img_size):
 
     transform = transforms.Compose([
-                    transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
                     transforms.Resize((img_size, img_size)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=mean, std=std)
@@ -100,11 +99,11 @@ def get_hugging_face_loader_OxfordPets(img_size):
         source = 'timm/oxford-iiit-pet'
 
         # Ensure the dataset is properly loaded with streaming set to True
-        # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-        train_dataset = load_dataset(source, split="train", streaming=True,trust_remote_code=True)
+        train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+        # train_dataset = load_dataset(source, split="train", streaming=True,trust_remote_code=True)
 
-        # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-        test_dataset = load_dataset(source, split="test", streaming=True,trust_remote_code=True)
+        test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        # test_dataset = load_dataset(source, split="test", streaming=True,trust_remote_code=True)
 
         transform = gen_transform(img_size)
 
