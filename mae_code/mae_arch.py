@@ -25,7 +25,7 @@ import numpy as np
 class DefaultArgs:
     def __init__(self):
         self.img_size = 64  # adjusted for Tiny ImageNet
-        self.patch_size = 16 # You can experiment with smaller sizes, like 8, if desired
+        self.patch_size = 4 # You can experiment with smaller sizes, like 8, if desired
         self.encoder_width = 512  # Adjusted for a smaller model
         self.n_heads = 8  # Fewer heads given the reduced complexity
         self.encoder_depth = 8  # Fewer layers
@@ -44,6 +44,8 @@ class MAE(nn.Module):
     def __init__(self,args=DefaultArgs):
         super().__init__()
         self.args =args 
+
+        print(args)
                  
                 #  img_size = args.image_size, channels= 3, num_classes =10, embed_dim=1024, patch_size=self.patch_size, num_heads=10, encoder_depth=12, mlp_ratio=4, dropout=0.1):
         self.seq_len = (self.args.img_size**2)/(self.args.patch_size**2)

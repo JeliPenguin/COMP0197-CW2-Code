@@ -88,13 +88,12 @@ def args_parser():
     parser.add_argument('--no_cls_token_encoder',action='store_true', help= 'No cls token prepended to embedded token inputsfor the encoder.')
     parser.add_argument('--no_cls_token_decoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the encoder.')
 
-    parser.add_argument('--n_epochs',type=int, default =200)
+    parser.add_argument('--n_epochs',type=int, default =100)
     parser.add_argument('--batch_size',type=int, default=256)
     # add an argument for a differnt test batch size
 
 
     args = parser.parse_args()
-    print(args)
     return args
 
 
@@ -109,7 +108,6 @@ if __name__ == "__main__":
     
     
     args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
-    print(args.device)
 
 
     # directory for model checkpoints -

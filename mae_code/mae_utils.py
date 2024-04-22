@@ -56,7 +56,7 @@ def get_loaders(args):
     return train_loader, test_loader, mean, std
 
 
-
+import matplotlib.pyplot as plt
 def collate_fn(batch,args,mean,std):
     # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
 
