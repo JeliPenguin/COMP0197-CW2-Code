@@ -4,7 +4,6 @@ import torch.nn as nn
 class FinetuneDecoder(nn.Module):
     def __init__(self, input_channels=1, output_channels=3, output_size=128):
         super(FinetuneDecoder, self).__init__()
-        # Assuming the input size is smaller than the output size, scale up
         self.upsample = nn.Upsample(size=(output_size, output_size), mode='bilinear', align_corners=False)
         self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
@@ -66,4 +65,11 @@ class FinetuneDecoderResnet(nn.Module):
         x = self.resblock4(x)
         x = self.conv_final(x)
         return x
+    
+
+if __name__ == "__main__":
+    deeper_decoder = FinetuneDecoder(output_channels=3)
+    input_tensor = torch.randn(64, 1, 25, 1024)
+    output_tensor = deeper_decoder(input_tensor)
+    print("Output shape:", output_tensor.shape) 
 
