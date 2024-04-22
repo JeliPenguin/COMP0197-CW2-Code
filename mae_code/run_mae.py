@@ -69,7 +69,7 @@ def args_parser():
     # parser.add_argument('--img_size',type = int, default=224, help='img_size H=W resolution of images input to encoder')
     parser.add_argument('--img_size',type = int, default=64, help='img_size H=W resolution of images input to encoder')
     parser.add_argument('--c',type=int, default= 3, help='number of colour channels. default 3 for RGB color')
-    parser.add_argument('--patch_size', type=int, default=16)
+    parser.add_argument('--patch_size', type=int, default=4)
     parser.add_argument('--encoder_width', type=int, default =1024,help='embedding dimension for encoder inputs')
     parser.add_argument('--encoder_depth',type=int, default=12)
 
