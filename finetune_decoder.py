@@ -1,0 +1,69 @@
+import torch
+import torch.nn as nn
+
+class FinetuneDecoder(nn.Module):
+    def __init__(self, input_channels=1, output_channels=3, output_size=128):
+        super(FinetuneDecoder, self).__init__()
+        # Assuming the input size is smaller than the output size, scale up
+        self.upsample = nn.Upsample(size=(output_size, output_size), mode='bilinear', align_corners=False)
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(256, output_channels, kernel_size=3, padding=1)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.upsample(x)
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
+        x = self.conv4(x)
+        return x
+    
+
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(channels)
+
+    def forward(self, x):
+        identity = x
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += identity
+        return self.relu(out)
+
+class FinetuneDecoderResnet(nn.Module):
+    def __init__(self, input_channels=1, output_channels=3, output_size=128):
+        super(FinetuneDecoder, self).__init__()
+        self.upsample = nn.Upsample(size=(output_size, output_size), mode='bilinear', align_corners=False)
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)
+
+        # Adding more depth via residual blocks
+        self.resblock1 = ResidualBlock(64)
+        self.resblock2 = ResidualBlock(64)
+        self.resblock3 = ResidualBlock(64)
+
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(128)
+        self.resblock4 = ResidualBlock(128)
+
+        self.conv_final = nn.Conv2d(128, output_channels, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        x = self.upsample(x)
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.resblock1(x)
+        x = self.resblock2(x)
+        x = self.resblock3(x)
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.resblock4(x)
+        x = self.conv_final(x)
+        return x
+
