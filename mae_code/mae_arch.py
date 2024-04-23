@@ -133,7 +133,7 @@ class MAE(nn.Module):
             x = x[:,1:, :]
         
         
-        return x , mask_idxs.to(self.args.device) # x is the reconstructed image, masks_idxs are the indices of the patches in each image
+        return x , mask_idxs # x is the reconstructed image, masks_idxs are the indices of the patches in each image
     
 
     def loss(self, images ,x,mask_idxs):
@@ -163,7 +163,7 @@ class MAE(nn.Module):
 
 
     # tidy only needs, mask_idxs as input, rest can be accessed from self.args
-    def create_visual_mask(self, images,mask_idxs, patch_size):
+    def create_visual_mask(self, images,mask_idxs, patch_size, device):
         """
         converts masked patch idxs into masks for images.
         Used for visualization only. 
@@ -182,7 +182,7 @@ class MAE(nn.Module):
         num_patches = num_patches_h * num_patches_w
 
         # initialize the mask for all patches as ones (nothing is masked)
-        patch_mask = torch.ones((batch_size, num_patches), dtype=torch.uint8, device=self.args.device)
+        patch_mask = torch.ones((batch_size, num_patches), dtype=torch.uint8, device=device)
 
         # set the masked patches to zero, .scatter is a covnvenient functiob
         patch_mask.scatter_(1, mask_idxs, 0)
@@ -581,61 +581,48 @@ class MLP_class_head(nn.Module):
 
 
 
-def visualize_comparisons(loader, model):
-    #compares masked original, image, autoencoder reconstruction
-    # on a batch of images
+def visualize_comparisons(loader, model, device):
+    # Set the device appropriately based on CUDA availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
    
-    model.self.args.device = device
     model.to(device)
     model.eval()
+
     with torch.no_grad():
-          batch = next(iter(loader))
-          images = batch[0].to(device)
+        batch = next(iter(loader))
+        images = batch[0].to(device)
 
-          decoder_output, mask_idxs = model(images)
-          reconstructions = model.reconstruct_image(decoder_output)
-        
-          masks = model.create_visual_mask(images, mask_idxs, 4)
-          masked_images = images * masks
+        decoder_output, mask_idxs = model(images)
+        reconstructions = model.reconstruct_image(decoder_output)
+      
+        # Ensure the 'device' argument is passed correctly
+        masks = model.create_visual_mask(images, mask_idxs, 4, device)
+        masked_images = images * masks
 
-          #the number of examples to display (limited to a manageable number for visualization)
-          batch_size = images.size(0)
-          if batch_size > 4:
-              print("Batch size is too large for effective visualization. Reducing to 4 for display.")
-              batch_size = 4  # Adjust batch size here if needed
+        batch_size = images.size(0)
+        if batch_size > 4:
+            print("Batch size is too large for effective visualization. Reducing to 4 for display.")
+            batch_size = 4  # Adjust batch size here if needed
 
-          fig, axes = plt.subplots(batch_size, 3, figsize=(15, 5 * batch_size))  # 3 columns for each type of image
+        fig, axes = plt.subplots(batch_size, 3, figsize=(15, 5 * batch_size))
 
-          # no. of rows in plot is the no. of samples in batch
-          for i in range(batch_size):
-              imshow(masked_images[i], axes[i, 0])
-              imshow(reconstructions[i], axes[i, 1])
-              imshow(images[i], axes[i, 2])
+        for i in range(batch_size):
+            imshow(masked_images[i], axes[i, 0], model.args.mean_pixels, model.args.std_pixels)
+            imshow(reconstructions[i], axes[i, 1], model.args.mean_pixels, model.args.std_pixels)
+            imshow(images[i], axes[i, 2], model.args.mean_pixels, model.args.std_pixels)
 
-          # Labeling columns
-          columns = ['Masked Image', 'Reconstruction', 'Original Image']
-          for ax, col in zip(axes[0], columns):
-              ax.set_title(col)
+        columns = ['Masked Image', 'Reconstruction', 'Original Image']
+        for ax, col in zip(axes[0], columns):
+            ax.set_title(col)
 
-          plt.subplots_adjust(wspace=0.1, hspace=0.1)  # Adjust the spacing between images
-          plt.show()
-           # Show only one batch for demonstration
+        plt.subplots_adjust(wspace=0.1, hspace=0.1)
+        plt.show()
 
 def imshow(img, ax, mean,std):
     # Helper function to unnormalize and show an image on a given Axes object.
-    mean = mean.view(3, 1, 1).to(device)
-    std = std.view(3, 1, 1).to(device)
+    mean = mean.view(3, 1, 1)
+    std = std.view(3, 1, 1)
     img = img * std + mean  # Unnormalize and move to CPU
     npimg = img.cpu().numpy()
     ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
     ax.axis('off')  # Hide axes ticks
-
-
-
-
-
-
-
-
-

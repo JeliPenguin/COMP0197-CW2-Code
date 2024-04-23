@@ -178,5 +178,5 @@ def config_to_model(config):
 
 def load_model(model_path, config):
     model, args = config_to_model(config)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
     return model, args

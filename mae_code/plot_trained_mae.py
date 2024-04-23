@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 from mae_utils import get_hugging_face_loaders, load_model,mean,std
-
+print(torch.cuda.is_available())
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -23,7 +23,7 @@ def visualize_comparisons(args,model):
           decoder_output, mask_idxs = model(images)
           reconstructions = model.reconstruct_image(decoder_output)
         
-          masks = model.create_visual_mask(images, mask_idxs, args.patch_size)
+          masks = model.create_visual_mask(images, mask_idxs, args.patch_size, device)
 
           print(images.shape,masks.shape)
           masked_images = images * masks
@@ -73,18 +73,3 @@ if __name__ == "__main__":
     model, old_args = load_model(args.model ,args.config) #old args are the args used to train model in path
 
     visualize_comparisons(old_args,model)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
