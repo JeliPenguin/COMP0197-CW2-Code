@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class FinetuneDecoderShallow(nn.Module):
     def __init__(self, input_channels=1, output_channels=3, output_size=64):
         super(FinetuneDecoderShallow, self).__init__()
@@ -65,7 +66,7 @@ class ResidualBlock(nn.Module):
 
 class FinetuneDecoderResnet(nn.Module):
     def __init__(self, input_channels=1, output_channels=3, output_size=64):
-        super(FinetuneDecoder, self).__init__()
+        super(FinetuneDecoderResnet, self).__init__()
         self.upsample = nn.Upsample(size=(output_size, output_size), mode='bilinear', align_corners=False)
         self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
@@ -95,8 +96,9 @@ class FinetuneDecoderResnet(nn.Module):
     
 
 if __name__ == "__main__":
-    deeper_decoder = FinetuneDecoderShallow(output_channels=3)
-    input_tensor = torch.randn(64, 1, 25, 30)
+    # deeper_decoder = FinetuneDecoderShallow(output_channels=3)
+    deeper_decoder = FinetuneDecoder()
+    input_tensor = torch.randn(64, 1, 4, 2048)
     output_tensor = deeper_decoder(input_tensor)
     print("Output shape:", output_tensor.shape) 
 

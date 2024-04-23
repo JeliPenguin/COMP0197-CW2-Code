@@ -31,7 +31,7 @@ def custom_augmented(img_size):
     def_transform = core.transform_dict.copy()
     def_transform["common_transform"] = transforms.Compose([
             transforms.Resize((img_size, img_size), interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.RandomHorizontalFlip(p=0.5)
+            # transforms.RandomHorizontalFlip(p=0.5)
             # transforms.Normalize(mean=mean, std=std)
             # transforms.Normalize(mean=mean, std=std)
         ])
@@ -50,47 +50,6 @@ def custom_augmented(img_size):
                                      **def_transform)
 
     return trainset,testset
-
-
-def get_finetune_loader(batch_size,img_size):
-
-        source = 'timm/oxford-iiit-pet'
-
-
-        train_dataset = load_dataset(source, split="train", streaming=True,trust_remote_code=True)
-
-        # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-        test_dataset = load_dataset(source, split="test", streaming=True,trust_remote_code=True)
-
-        def collate_fn(batch,embedding_type):
-            # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
-            embeddings, labels , image_ids = [], [], []
-            for item in batch:
-                label = torch.tensor(item['label'], dtype=torch.long)
-                image_id = item['image_id']
-                embedding_dir = f"mae_embeddings/{embedding_type}/{image_id}.pt"
-                # print(embedding_dir)
-                embedding = torch.load(embedding_dir)
-                embeddings.append(embedding)
-                labels.append(label)
-                image_ids.append(image_id)
-            return torch.stack(embeddings), torch.stack(labels) , image_ids
-
-        # Setup DataLoader with the custom collate function
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            collate_fn=lambda batch: collate_fn(batch,"train")
-        )
-
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=batch_size,
-            collate_fn=lambda batch: collate_fn(batch,"test")
-        )
-
-        return train_loader, test_loader
-
 
 
 

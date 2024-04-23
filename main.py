@@ -7,11 +7,12 @@ def args_parser():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--cuda', action='store_true', help='Force to use CUDA if available')
     parser.add_argument('--resnet', action='store_true')
+    parser.add_argument('--facebook_mae', action='store_true')
     parser.add_argument('--test_mode', action='store_true')
     # parser.add_argument('--gen_embed',action='store_true')
     parser.add_argument("--model", type=str,required=True, help="loads pretrained MAE model")
     parser.add_argument('--n_epochs',type=int, default =20)
-    parser.add_argument('--batch_size',type=int, default=64)
+    parser.add_argument('--batch_size',type=int, default=16)
 
     args = parser.parse_args()
     return args

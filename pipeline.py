@@ -13,21 +13,29 @@ import torch.nn as nn
 import core as core
 import torchmetrics as TM
 import torchvision
+from torchvision import models
 
 class Pipeline():
     def __init__(self,args) -> None:
         self.device = torch.device(args.device)
-        self.pretrained_encoder = self.load_pretrained_encoder(args.model)
-        
+        self.resnet = args.resnet
+        self.facebook_mae = args.facebook_mae
         self.batch_size = args.batch_size
         self.n_epochs = args.n_epochs
 
-        if args.resnet:
+        self.pretrained_encoder = self.load_pretrained_encoder(args.model)
+
+        
+
+        if self.resnet:
             print("Using Resnet")
-            self.model = FinetuneDecoderResnet(output_channels=3).to(self.device)
+            self.model = FinetuneDecoder(input_channels=2048,output_channels=3,output_size=self.img_size).to(self.device)
+        # elif self.facebook_mae:
+        #     print("Using Facebook MAE")
+        #     self.model = FinetuneDecoder(input_channels=2048,output_channels=3).to(self.device)
         else:
-            print("Using conv")
-            self.model = FinetuneDecoder(output_channels=3).to(self.device)
+            self.model = FinetuneDecoder(output_channels=3,output_size=self.img_size).to(self.device)
+            # self.model = FeedForwardDecoder(12,1024).to(self.device)
 
         # if args.gen_embed:
         #     self.gen_embedding()
@@ -57,9 +65,8 @@ class Pipeline():
         with open(filename, 'r') as f:
             config = json.load(f)
             return config
-    
-    def load_pretrained_encoder(self,model_dir):
-
+        
+    def load_model(self,model_dir):
         model_config_dir = os.path.join(model_dir,"config.json")
         model_checkpoint_dir = os.path.join(model_dir,"model.pth")
 
@@ -68,31 +75,44 @@ class Pipeline():
 
         args = argparse.Namespace(**model_config)
         
-        #unserialize
-        self.img_size = model_config['img_size']
-        args.mean_pixels = torch.tensor(model_config['mean_pixels'])
-        args.std_pixels = torch.tensor(model_config['std_pixels'])
+        # self.img_size = model_config['img_size']
+        self.img_size = 128
 
-        model = MAE(args)  
-        model.load_state_dict(torch.load(model_checkpoint_dir))
+        if self.resnet:
+            model = models.resnet50(pretrained=True).to(self.device)
+        # elif self.facebook_mae:
+        #     chkpt_dir = 'MAE/mae_visualize_vit_large.pth'
+        #     model = getattr(chkpt_dir, 'mae_vit_large_patch16')()
+        #     checkpoint = torch.load(chkpt_dir, map_location='cpu')
+        #     model.load_state_dict(checkpoint['model'], strict=False).to(self.device())
+        else:     
+            args.mean_pixels = torch.tensor(model_config['mean_pixels'])
+            args.std_pixels = torch.tensor(model_config['std_pixels'])
+
+            model = MAE(args)  
+            model.load_state_dict(torch.load(model_checkpoint_dir))
+            
         model.to(self.device)
-
         for param in model.parameters():
             param.requires_grad = False
+        
+        return model
+    
+    def load_pretrained_encoder(self,model_dir):
 
-        # common_transform = transforms.Compose([
-        #     transforms.Resize((args.img_size, args.img_size), interpolation=transforms.InterpolationMode.NEAREST),
-        #     transforms.RandomHorizontalFlip(p=0.5)
-        #     # transforms.Normalize(mean=mean, std=std),
-        #     # transforms.Normalize(mean=mean, std=std)
-        # ])
+        model = self.load_model(model_dir)
 
-        # transform = transform_dict
-        # transform["common_transform"] = common_transform
-        # # transform["post_transform"] = None
-        # # transform["post_target_transform"] = None
+        if self.resnet:
+            encoder = nn.Sequential(*list(model.children())[:-2])
+        # elif self.facebook_mae:
+        #     print(model)
+        #     exit()
+        else:
+            encoder = model.encoder_block
 
-        return model.encoder_block
+        return encoder
+
+        
     
     def gen_embedding(self):
         # Create dataloader for HF pets dataset:
@@ -135,8 +155,11 @@ class Pipeline():
             torch.save(encoded_features,filename)
     
     def predict(self,inputs):
-        encoded,_,_ = self.pretrained_encoder(inputs.to(self.device))
-        encoded = encoded.unsqueeze(1)
+        if self.resnet or self.facebook_mae:
+            encoded = self.pretrained_encoder(inputs.to(self.device))
+        else:
+            encoded,_,_ = self.pretrained_encoder(inputs.to(self.device))
+            encoded = encoded.unsqueeze(1)
 
         return self.model(encoded)
 
