@@ -99,11 +99,11 @@ def get_hugging_face_loader_OxfordPets(img_size):
         source = 'timm/oxford-iiit-pet'
 
         # Ensure the dataset is properly loaded with streaming set to True
-        train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-        # train_dataset = load_dataset(source, split="train", streaming=True,trust_remote_code=True)
+        # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+        train_dataset = load_dataset(source, split="train", streaming=True,trust_remote_code=True)
 
-        test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-        # test_dataset = load_dataset(source, split="test", streaming=True,trust_remote_code=True)
+        # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        test_dataset = load_dataset(source, split="test", streaming=True,trust_remote_code=True)
 
         transform = gen_transform(img_size)
 
