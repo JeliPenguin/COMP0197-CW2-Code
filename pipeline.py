@@ -4,7 +4,7 @@ import torch
 import os
 import argparse
 import json
-from dataloaders import get_finetune_loader,get_hugging_face_loader_OxfordPets,custom_augmented
+from dataloaders import get_hugging_face_loader_OxfordPets,custom_augmented
 import time
 import os
 import time
@@ -26,7 +26,6 @@ class Pipeline():
         self.pretrained_encoder = self.load_pretrained_encoder(args.model)
 
         
-
         if self.resnet:
             print("Using Resnet")
             self.model = FinetuneDecoder(input_channels=2048,output_channels=3,output_size=self.img_size).to(self.device)
@@ -56,15 +55,6 @@ class Pipeline():
         self.test_loader = torch.utils.data.DataLoader(testset,
                                                     batch_size=self.batch_size,
                                                     shuffle=False)
-
-
-    def load_config(self,filename='config.json'):
-        """
-        Loads the configuration from a JSON file.
-        """
-        with open(filename, 'r') as f:
-            config = json.load(f)
-            return config
         
     def load_model(self,model_dir):
         model_config_dir = os.path.join(model_dir,"config.json")
@@ -75,8 +65,7 @@ class Pipeline():
 
         args = argparse.Namespace(**model_config)
         
-        # self.img_size = model_config['img_size']
-        self.img_size = 128
+        self.img_size = model_config['img_size']
 
         if self.resnet:
             model = models.resnet50(pretrained=True).to(self.device)
