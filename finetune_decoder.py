@@ -1,6 +1,34 @@
 import torch
 import torch.nn as nn
 
+class FinetuneFeedForward(nn.Module):
+    def __init__(self, input_dim,output_channels=3,output_size=64):
+        super(FinetuneFeedForward, self).__init__()
+        output_dim = output_channels * output_size * output_size
+
+        self.network = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(input_dim, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 2048),
+            nn.ReLU(),
+            nn.Linear(2048, 2048),
+            nn.ReLU(),
+            nn.Linear(2048, 4096),
+            nn.ReLU(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(),
+            nn.Linear(4096, output_dim)
+        )
+
+    def forward(self, x):
+        x = self.network(x)
+        # Reshape to [batch_size, 3, 64, 64]
+        x = x.view(-1, 3, 64, 64)
+        return x
+
 
 class FinetuneDecoderShallow(nn.Module):
     def __init__(self, input_channels=1, output_channels=3, output_size=64):

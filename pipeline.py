@@ -1,5 +1,5 @@
 from mae_code.mae_arch import MAE
-from finetune_decoder import FinetuneDecoder, FinetuneDecoderResnet
+from finetune_decoder import FinetuneDecoder, FinetuneDecoderResnet, FinetuneFeedForward
 import torch
 import os
 import argparse
@@ -14,12 +14,13 @@ import core as core
 import torchmetrics as TM
 import torchvision
 from torchvision import models
+from torchvision.models.vision_transformer import vit_h_14
 
 class Pipeline():
     def __init__(self,args) -> None:
         self.device = torch.device(args.device)
         self.resnet = args.resnet
-        self.facebook_mae = args.facebook_mae
+        self.vit = args.vit
         self.batch_size = args.batch_size
         self.n_epochs = args.n_epochs
 
@@ -28,13 +29,14 @@ class Pipeline():
         
         if self.resnet:
             print("Using Resnet")
-            self.model = FinetuneDecoder(input_channels=2048,output_channels=3,output_size=self.img_size).to(self.device)
-        # elif self.facebook_mae:
-        #     print("Using Facebook MAE")
-        #     self.model = FinetuneDecoder(input_channels=2048,output_channels=3).to(self.device)
+            # self.model = FinetuneDecoder(input_channels=2048,output_channels=3,output_size=self.img_size).to(self.device)
+            self.model = FinetuneFeedForward(4*2048).to(self.device)
+        elif self.vit:
+            print("Using ViT")
+            self.model = FinetuneDecoder(input_channels=2048,output_channels=3).to(self.device)
         else:
             self.model = FinetuneDecoder(output_channels=3,output_size=self.img_size).to(self.device)
-            # self.model = FeedForwardDecoder(12,1024).to(self.device)
+            # self.model = FinetuneFeedForward(65*512).to(self.device)
 
         # if args.gen_embed:
         #     self.gen_embedding()
@@ -68,12 +70,10 @@ class Pipeline():
         self.img_size = model_config['img_size']
 
         if self.resnet:
-            model = models.resnet50(pretrained=True).to(self.device)
-        # elif self.facebook_mae:
-        #     chkpt_dir = 'MAE/mae_visualize_vit_large.pth'
-        #     model = getattr(chkpt_dir, 'mae_vit_large_patch16')()
-        #     checkpoint = torch.load(chkpt_dir, map_location='cpu')
-        #     model.load_state_dict(checkpoint['model'], strict=False).to(self.device())
+            # model = models.resnet50(pretrained=True).to(self.device)
+            model = models.resnet152(pretrained=True).to(self.device)
+        elif self.vit:
+            model = vit_h_14(weights="DEFAULT")
         else:     
             args.mean_pixels = torch.tensor(model_config['mean_pixels'])
             args.std_pixels = torch.tensor(model_config['std_pixels'])
@@ -89,15 +89,14 @@ class Pipeline():
     
     def load_pretrained_encoder(self,model_dir):
 
-        model = self.load_model(model_dir)
+        self.pre_trained_model = self.load_model(model_dir)
 
         if self.resnet:
-            encoder = nn.Sequential(*list(model.children())[:-2])
-        # elif self.facebook_mae:
-        #     print(model)
-        #     exit()
+            encoder = nn.Sequential(*list(self.pre_trained_model.children())[:-2])
+        # elif self.vit:
+        #     encoder = self.pre_trained_model.encoder
         else:
-            encoder = model.encoder_block
+            encoder = self.pre_trained_model.encoder_block
 
         return encoder
 
@@ -144,11 +143,41 @@ class Pipeline():
             torch.save(encoded_features,filename)
     
     def predict(self,inputs):
-        if self.resnet or self.facebook_mae:
+        if self.resnet:
             encoded = self.pretrained_encoder(inputs.to(self.device))
+            
+        # elif self.vit:
+        #     x = self.pre_trained_model._process_input(inputs)
+        #     n = x.shape[0]
+
+        #     # Expand the class token to the full batch
+        #     batch_class_token = self.pre_trained_model.class_token.expand(n, -1, -1)
+        #     x = torch.cat([batch_class_token, x], dim=1)
+
+        #     encoded = self.pretrained_encoder(x)
+
+        #     encoded = encoded[:, 0]
+
+        #     print(encoded.shape)
         else:
-            encoded,_,_ = self.pretrained_encoder(inputs.to(self.device))
+            x,unshuffle_indices,mask_idxs = self.pretrained_encoder(inputs.to(self.device))
+        
+            #encoder and decoder have different depths - linear transformation to handle this as in MAE paper 
+            x= self.pre_trained_model.enc_to_dec(x) # this is our patch embedding for the decoder, no need to linearly project again. in self.embed_patch_decoder
+
+            # print(unshuffle_indices)
+            x = self.pre_trained_model.add_mask_tokens_and_unshuffle(x,unshuffle_indices)
+            
+            # linear project just need pos
+            x = self.pre_trained_model.embed_patch_decoder(x) # cls and add position embeddings
+
+            encoded = x
+
             encoded = encoded.unsqueeze(1)
+            # print(encoded.shape)
+
+            # encoded,_,_ = self.pretrained_encoder(inputs.to(self.device))
+            
 
         return self.model(encoded)
 
