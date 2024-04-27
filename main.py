@@ -7,7 +7,7 @@ def args_parser():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--cuda', action='store_true', help='Force to use CUDA if available')
     parser.add_argument('--resnet', action='store_true')
-    parser.add_argument('--vit', action='store_true')
+    parser.add_argument('--facebook_mae', action='store_true')
     parser.add_argument('--test_mode', action='store_true')
     # parser.add_argument('--gen_embed',action='store_true')
     parser.add_argument("--model", type=str,required=True, help="loads pretrained MAE model")

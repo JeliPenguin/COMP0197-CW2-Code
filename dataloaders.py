@@ -30,8 +30,8 @@ def custom_augmented(img_size):
 
     def_transform = core.transform_dict.copy()
     def_transform["common_transform"] = transforms.Compose([
-            transforms.Resize((img_size, img_size),
-            transforms.RandomHorizontalFlip(p=0.5)
+            transforms.Resize((img_size, img_size), interpolation=transforms.InterpolationMode.NEAREST),
+            # transforms.RandomHorizontalFlip(p=0.5)
             # transforms.Normalize(mean=mean, std=std)
             # transforms.Normalize(mean=mean, std=std)
         ])
