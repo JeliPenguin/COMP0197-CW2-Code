@@ -57,6 +57,8 @@ class Trainer:
     def train_one_epoch(self,model, dataloader, optimizer, device, print_freq):
         model.train()
         total_loss = 0
+        iter_loss = 0
+
         for i, (images, _) in enumerate(dataloader):
             images = images.to(self.device)
 
@@ -65,6 +67,7 @@ class Trainer:
 
             # calculate loss (assuming your model's loss method is appropriately defined)
             loss = model.loss(images, reconstructed, mask_indices)
+            iter_loss += loss.item()
             total_loss += loss.item()
 
             # gradients and step
@@ -76,9 +79,11 @@ class Trainer:
 
 
             if (i + 1) % print_freq == 0:
-                
-                val_loss = self.validate(model, self.val_loader, self.device)
-                print(f' Iteration {i + 1}, Train Loss: {loss.item()} | Validation Loss:{val_loss}')
+                average_loss = iter_loss / print_freq
+                print(f'Batch: {i + 1}, Time: {datetime.datetime.now()}, Average Train Loss: {average_loss}')
+                iter_loss = 0
+                # val_loss = self.validate(model, self.val_loader, self.device)
+                # print(f' Iteration {i + 1}, Train Loss: {loss.item()} | Validation Loss:{val_loss}')
 
         return total_loss / (i+1)
     

@@ -56,52 +56,193 @@ def get_loaders(args):
     return train_loader, test_loader, mean, std
 
 
-import matplotlib.pyplot as plt
-def collate_fn(batch,args,mean,std):
-    # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
+# import matplotlib.pyplot as plt
+# def collate_fn(batch,args,mean,std):
+#     # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
 
+#     transform = transforms.Compose([
+#         # transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
+#         transforms.Resize((args.img_size, args.img_size)),
+#         transforms.Lambda(lambda x: x.convert("RGB")),  # Convert image to RGB
+#         transforms.ToTensor(),
+#         transforms.Normalize(mean=mean, std=std)
+#     ])
+#     images, labels = [], []
+#     for item in batch:
+#         image = transform(item['image'])
+#         label = torch.tensor(item['label'], dtype=torch.long)
+#         images.append(image)
+#         labels.append(label)
+#     return torch.stack(images), torch.stack(labels)
+
+
+def transform_image(image, args, mean, std):
     transform = transforms.Compose([
-        # transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
         transforms.Resize((args.img_size, args.img_size)),
-        transforms.Lambda(lambda x: x.convert("RGB")),  # Convert image to RGB
+        transforms.Lambda(lambda x: x.convert("RGB")),  # Ensure image is RGB
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ])
-    images, labels = [], []
+    return transform(image)
+
+def collate_fn(batch):
+    # Preallocate lists for images and labels
+    images = []
+    labels = []
+
+    # Loop through each item in the batch
     for item in batch:
-        image = transform(item['image'])
-        label = torch.tensor(item['label'], dtype=torch.long)
-        images.append(image)
-        labels.append(label)
-    return torch.stack(images), torch.stack(labels)
+        # Assuming 'item['image']' is already a tensor since preprocessing is done beforehand
+        images.append(item['image'])
+
+        # Assuming 'item['label']' might need to be converted to tensor
+        # Check if it's already a tensor to avoid redundant operations
+        if isinstance(item['label'], torch.Tensor):
+            labels.append(item['label'])
+        else:
+            labels.append(torch.tensor(item['label'], dtype=torch.long))
+
+    # Stack all images and labels into tensors
+    images = torch.stack(images)
+    labels = torch.stack(labels)
+
+    return images, labels
+
+# def get_hugging_face_loaders(args):
+
+
+#     # Ensure the dataset is properly loaded with streaming set to True
+#     # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+#     train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
+
+#     # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+#     test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
+
+#     # Setup DataLoader with the custom collate function
+#     train_loader = DataLoader(
+#         train_dataset,
+#         batch_size=args.batch_size,
+#         collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+#     )
+
+#     test_loader = DataLoader(
+#         test_dataset,
+#         batch_size=args.batch_size,
+#         collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+#     )
+
+
+#     return train_loader, test_loader, mean, std
 
 
 def get_hugging_face_loaders(args):
+    # Load the ImageNet-1k dataset in streaming mode
+    print('Loading train dataset in streaming mode.')
+    train_dataset = load_dataset("imagenet-1k", split="train", streaming=True, trust_remote_code=True)
 
+    print('Loading test dataset in streaming mode.')
+    test_dataset = load_dataset("imagenet-1k", split="validation", streaming=True, trust_remote_code=True)
 
-    # Ensure the dataset is properly loaded with streaming set to True
-    # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-    train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
-
-    # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-    test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
+    pet_classes = [
+        1,      # Goldfish, Carassius auratus
+        12,     # House finch, linnet, Carpodacus mexicanus
+        87,     # African grey, African gray, Psittacus erithacus
+        88,     # Macaw
+        89,     # Sulphur-crested cockatoo, Kakatoe galerita, Cacatua galerita
+        90,     # Lorikeet
+        91,     # Coucal
+        151,    # Chihuahua
+        152,    # Japanese spaniel
+        153,    # Maltese dog, Maltese terrier, Maltese
+        154,    # Pekinese, Pekingese, Peke
+        155,    # Shih-Tzu
+        156,    # Blenheim spaniel
+        157,    # Papillon
+        158,    # Toy terrier
+        159,    # Rhodesian ridgeback
+        160,    # Afghan hound, Afghan
+        161,    # Basset, basset hound
+        162,    # Beagle
+        163,    # Bloodhound, sleuthhound
+        164,    # Bluetick
+        165,    # Black-and-tan coonhound
+        166,    # Walker hound, Walker foxhound
+        167,    # English foxhound
+        168,    # Redbone
+        169,    # Borzoi, Russian wolfhound
+        170,    # Irish wolfhound
+        171,    # Italian greyhound
+        172,    # Whippet
+        173,    # Ibizan hound, Ibizan Podenco
+        174,    # Norwegian elkhound, elkhound
+        175,    # Otterhound, otter hound
+        176,    # Saluki, gazelle hound
+        177,    # Scottish deerhound, deerhound
+        178,    # Weimaraner
+        179,    # Staffordshire bull terrier, Staffordshire bullterrier
+        180,    # American Staffordshire terrier, Staffordshire terrier, American pit bull terrier, pit bull terrier
+        181,    # Bedlington terrier
+        182,    # Border terrier
+        183,    # Kerry blue terrier
+        184,    # Irish terrier
+        185,    # Norfolk terrier
+        186,    # Norwich terrier
+        187,    # Yorkshire terrier
+        188,    # Wire-haired fox terrier
+        189,    # Lakeland terrier
+        190,    # Sealyham terrier, Sealyham
+        191,    # Airedale, Airedale terrier
+        192,    # Cairn, cairn terrier
+        193,    # Australian terrier
+        194,    # Dandie Dinmont, Dandie Dinmont terrier
+        195,    # Boston bull, Boston terrier
+        196,    # Miniature schnauzer
+        197,    # Giant schnauzer
+        198,    # Standard schnauzer
+        199,    # Scotch terrier, Scottish terrier, Scottie
+        200,    # Tibetan terrier, chrysanthemum dog
+        201,    # Silky terrier, Sydney silky
+        202,    # Soft-coated wheaten terrier
+        203,    # West Highland white terrier
+        204,    # Lhasa, Lhasa apso
+        205,    # Flat-coated retriever
+        206,    # Curly-coated retriever
+        207,    # Golden retriever
+        208,    # Labrador retriever
+        209,    # Chesapeake Bay retriever
+        245,    # French bulldog
+        250,    # Siberian husky
+        251,    # Dalmatian, coach dog, carriage dog
+        259,    # Pomeranian
+        260,    # Chow, chow chow
+        261,    # Keeshond
+        262,    # Brabancon griffon
+        263,    # Pembroke, Pembroke Welsh corgi
+        264,    # Cardigan, Cardigan Welsh corgi
+        265,    # Toy poodle
+        266,    # Miniature poodle
+        267,    # Standard poodle
+        268,    # Mexican hairless
+        281,    # Tabby, tabby cat
+        282,    # Tiger cat
+        283,    # Persian cat
+        284,    # Siamese cat, Siamese
+        285,    # Egyptian cat
+        330,    # Rabbit, wood rabbit, cottontail, cottontail rabbit
+        333,    # Hamster
+        338     # Guinea pig, Cavia cobaya
+    ]
 
     # Setup DataLoader with the custom collate function
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-    )
+    print('Applying transformations and filtering datasets.')
+    transform_lambda = lambda x: {'image': transform_image(x['image'], args, mean, std), 'label': x['label']}
+    train_dataset = train_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=args.batch_size)
+    test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=args.batch_size)
 
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-    )
-
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
 
     return train_loader, test_loader, mean, std
-
 
 
 def calculate_mean_std(dataset, first=3000 ):
