@@ -4,10 +4,12 @@ from torch.utils.data import DataLoader, Subset, random_split
 import numpy as np
 import json 
 import os 
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 import torch
 from torch.utils.data import DataLoader
 import argparse
+from functools import partial
+
 from mae_arch import MAE
 
 mean = torch.Tensor([0.485, 0.456, 0.406])
@@ -75,6 +77,11 @@ def get_loaders(args):
 #         labels.append(label)
 #     return torch.stack(images), torch.stack(labels)
 
+def gen_from_iterable_dataset(iterable_dataset):
+    # This generator will yield items from the iterable dataset
+    for item in iterable_dataset:
+        yield item
+
 
 def transform_image(image, args, mean, std):
     transform = transforms.Compose([
@@ -92,7 +99,6 @@ def collate_fn(batch):
 
     # Loop through each item in the batch
     for item in batch:
-        # Assuming 'item['image']' is already a tensor since preprocessing is done beforehand
         images.append(item['image'])
 
         # Assuming 'item['label']' might need to be converted to tensor
@@ -240,10 +246,12 @@ def get_hugging_face_loaders(args):
     test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=1000)
 
     print('Saving training dataset to disk.')
-    train_dataset.save_to_disk("/train_imagenet_animals")
+    train_ds = Dataset.from_generator(partial(gen_from_iterable_dataset, train_dataset), features=train_dataset.features)
+    train_ds.save_to_disk("/train_imagenet_animals")
 
     print('Saving test dataset to disk.')
-    test_dataset.save_to_disk("/test_imagenet_animals")
+    test_ds = Dataset.from_generator(partial(gen_from_iterable_dataset, test_dataset), features=test_dataset.features)
+    test_ds.save_to_disk("/test_imagenet_animals")
 
     # Load training and test datasets from disk
     train_dataset = load_dataset("/train_imagenet_animals")
