@@ -236,8 +236,18 @@ def get_hugging_face_loaders(args):
     # Setup DataLoader with the custom collate function
     print('Applying transformations and filtering datasets.')
     transform_lambda = lambda x: {'image': transform_image(x['image'], args, mean, std), 'label': x['label']}
-    train_dataset = train_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=args.batch_size)
-    test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=args.batch_size)
+    train_dataset = train_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=1000)
+    test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=1000)
+
+    print('Saving training dataset to disk.')
+    train_dataset.save_to_disk("/train_imagenet_animals")
+
+    print('Saving test dataset to disk.')
+    test_dataset.save_to_disk("/test_imagenet_animals")
+
+    # Load training and test datasets from disk
+    train_dataset = load_dataset("/train_imagenet_animals")
+    test_dataset = load_dataset("/test_imagenet_animals")
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
