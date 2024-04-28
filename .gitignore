@@ -3,3 +3,4 @@ oxford-iiit-pet
 __pycache__
 mae_embeddings
 MAE
+*.arrow

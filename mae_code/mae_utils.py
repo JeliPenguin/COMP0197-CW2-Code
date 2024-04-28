@@ -92,21 +92,25 @@ def transform_image(image, args, mean, std):
     ])
     return transform(image)
 
+
 def collate_fn(batch):
-    # Preallocate lists for images and labels
     images = []
     labels = []
 
-    # Loop through each item in the batch
     for item in batch:
-        images.append(item['image'])
+        # Ensure the image is a tensor. Convert if necessary.
+        image = item['image']
+        if not isinstance(image, torch.Tensor):
+            image = torch.tensor(image, dtype=torch.float)  # Ensure the data type is appropriate
 
-        # Assuming 'item['label']' might need to be converted to tensor
-        # Check if it's already a tensor to avoid redundant operations
-        if isinstance(item['label'], torch.Tensor):
-            labels.append(item['label'])
-        else:
-            labels.append(torch.tensor(item['label'], dtype=torch.long))
+        images.append(image)
+
+        # Handling labels
+        label = item['label']
+        if not isinstance(label, torch.Tensor):
+            label = torch.tensor(label, dtype=torch.long)
+
+        labels.append(label)
 
     # Stack all images and labels into tensors
     images = torch.stack(images)
@@ -114,8 +118,8 @@ def collate_fn(batch):
 
     return images, labels
 
-# def get_hugging_face_loaders(args):
 
+# def get_hugging_face_loaders(args):
 
 #     # Ensure the dataset is properly loaded with streaming set to True
 #     # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
@@ -141,14 +145,38 @@ def collate_fn(batch):
 #     return train_loader, test_loader, mean, std
 
 
-def get_hugging_face_loaders(args):
-    # Load the ImageNet-1k dataset in streaming mode
-    print('Loading train dataset in streaming mode.')
-    train_dataset = load_dataset("imagenet-1k", split="train", streaming=True, trust_remote_code=True)
+def get_hugging_face_loaders(args, disk_mode=True):
+    # Define the dataset paths
+    train_data_path = "./train_imagenet_animals"
+    test_data_path = "./test_imagenet_animals"
 
-    print('Loading test dataset in streaming mode.')
-    test_dataset = load_dataset("imagenet-1k", split="validation", streaming=True, trust_remote_code=True)
+    if disk_mode and os.path.exists(train_data_path) and os.path.exists(test_data_path):
+        # Load datasets from disk
+        print('Loading datasets from disk.')
+        train_dataset = Dataset.load_from_disk(train_data_path)
+        test_dataset = Dataset.load_from_disk(test_data_path)
+    else:
+        # Load datasets in streaming mode and process
+        print('Loading datasets in streaming mode.')
+        train_dataset, test_dataset = load_and_process_datasets(args)
+        if disk_mode:
+            print('Saving training dataset to disk.')
+            train_dataset = Dataset.from_generator(partial(gen_from_iterable_dataset, train_dataset), features=train_dataset.features)
+            train_dataset.save_to_disk("./train_imagenet_animals")
 
+            print('Saving test dataset to disk.')
+            test_dataset = Dataset.from_generator(partial(gen_from_iterable_dataset, test_dataset), features=test_dataset.features)
+            test_dataset.save_to_disk("./test_imagenet_animals")
+
+    # Prepare data loaders
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
+
+    return train_loader, test_loader, mean, std
+
+
+def load_and_process_datasets(args):        
+    # Define the pet classes to keep
     pet_classes = [
         1,      # Goldfish, Carassius auratus
         12,     # House finch, linnet, Carpodacus mexicanus
@@ -234,33 +262,26 @@ def get_hugging_face_loaders(args):
         283,    # Persian cat
         284,    # Siamese cat, Siamese
         285,    # Egyptian cat
-        330,    # Rabbit, wood rabbit, cottontail, cottontail rabbit
-        333,    # Hamster
-        338     # Guinea pig, Cavia cobaya
+        # 330,    # Rabbit, wood rabbit, cottontail, cottontail rabbit
+        # 333,    # Hamster
+        # 338     # Guinea pig, Cavia cobaya
     ]
 
-    # Setup DataLoader with the custom collate function
+    # Filter the datasets to only include the pet classes
     print('Applying transformations and filtering datasets.')
-    transform_lambda = lambda x: {'image': transform_image(x['image'], args, mean, std), 'label': x['label']}
-    train_dataset = train_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=1000)
-    test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(transform_lambda, batched=True, batch_size=1000)
+    # transform_lambda = lambda x: {'image': transform_image(x['image'], args, mean, std), 'label': x['label']}
+    def batch_transform(batch):
+        # Apply the transform_image to each image in the batch
+        batch['image'] = [transform_image(image, args, mean, std) for image in batch['image']]
+        # The labels don't need transformation, just pass them through
+        batch['label'] = batch['label']
+        return batch
 
-    print('Saving training dataset to disk.')
-    train_ds = Dataset.from_generator(partial(gen_from_iterable_dataset, train_dataset), features=train_dataset.features)
-    train_ds.save_to_disk("/train_imagenet_animals")
+    # Apply the transformations and filter the datasets
+    train_dataset = train_dataset.filter(lambda x: x['label'] in pet_classes).map(batch_transform, batched=True, batch_size=args.batch_size)
+    test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(batch_transform, batched=True, batch_size=args.batch_size)
 
-    print('Saving test dataset to disk.')
-    test_ds = Dataset.from_generator(partial(gen_from_iterable_dataset, test_dataset), features=test_dataset.features)
-    test_ds.save_to_disk("/test_imagenet_animals")
-
-    # Load training and test datasets from disk
-    train_dataset = load_dataset("/train_imagenet_animals")
-    test_dataset = load_dataset("/test_imagenet_animals")
-
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
-
-    return train_loader, test_loader, mean, std
+    return train_dataset, test_dataset
 
 
 def calculate_mean_std(dataset, first=3000 ):
