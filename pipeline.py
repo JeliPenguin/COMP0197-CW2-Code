@@ -88,22 +88,16 @@ class Pipeline():
         #     checkpoint = torch.load(chkpt_dir, map_location='cpu')
         #     model.load_state_dict(checkpoint['model'], strict=False).to(self.device())
             
-            for param in model.parameters():
-                param.requires_grad = False
+            
         else:     
             args.mean_pixels = torch.tensor(model_config['mean_pixels'])
             args.std_pixels = torch.tensor(model_config['std_pixels'])
             args.mask_ratio = 0
             model = MAE(args)  
             model.load_state_dict(torch.load(model_checkpoint_dir))
-            for param in model.embed_patch_encoder.parameters():
-                param.requires_grad = False
-
-            for param in model.encoder.parameters():
-                param.requires_grad = False
-            
-            for param in model.encoder_norm.parameters():
-                param.requires_grad = False
+        
+        for param in model.parameters():
+            param.requires_grad = False
             
         model.to(self.device)
         
@@ -169,7 +163,25 @@ class Pipeline():
         if self.resnet or self.facebook_mae:
             encoded = self.pretrained_encoder(inputs.to(self.device))
         elif self.use_mae_decoder:
-            decoder_output,_ =  self.model(inputs)
+            encoded,unshuffle_indices,_ = self.pretrained_encoder(inputs.to(self.device))
+
+            x= self.model.enc_to_dec(encoded) # this is our patch embedding for the decoder, no need to linearly project again. in self.embed_patch_decoder
+
+            # print(unshuffle_indices)
+            x = self.model.add_mask_tokens_and_unshuffle(x,unshuffle_indices)
+            
+            # linear project just need pos
+            x = self.model.embed_patch_decoder(x) # cls and add position embeddings
+            x = self.model.decoder(x)
+            x = self.model.decoder_norm(x)
+
+            #upsample back to image. 
+            decoder_output = self.model.dec_to_image_patch(x)
+            
+            # if decoder has a cls remove cls token: it's not a patch in the image but it's helped to aggregate info in the image
+            if self.model.decoder_cls:
+                decoder_output = decoder_output[:,1:, :]
+
             reconstructed = self.model.reconstruct_image(decoder_output)
             return reconstructed
         else:
