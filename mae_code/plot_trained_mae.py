@@ -64,13 +64,12 @@ def imshow(img, ax):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', help='path to a model file, to be loaded into pytorch')
-    parser.add_argument('-c', '--config', type=str, help='path to config file') # must be a .json file
+    parser.add_argument('--model', help='path to a model file')
 
     args = parser.parse_args()
 
 
-    model, old_args = load_model(args.model ,args.config) #old args are the args used to train model in path
+    model, old_args = load_model(args.model)
 
     visualize_comparisons(old_args,model)
 

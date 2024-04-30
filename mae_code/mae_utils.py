@@ -58,24 +58,6 @@ def get_loaders(args):
     return train_loader, test_loader, mean, std
 
 
-# import matplotlib.pyplot as plt
-# def collate_fn(batch,args,mean,std):
-#     # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
-
-#     transform = transforms.Compose([
-#         # transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
-#         transforms.Resize((args.img_size, args.img_size)),
-#         transforms.Lambda(lambda x: x.convert("RGB")),  # Convert image to RGB
-#         transforms.ToTensor(),
-#         transforms.Normalize(mean=mean, std=std)
-#     ])
-#     images, labels = [], []
-#     for item in batch:
-#         image = transform(item['image'])
-#         label = torch.tensor(item['label'], dtype=torch.long)
-#         images.append(image)
-#         labels.append(label)
-#     return torch.stack(images), torch.stack(labels)
 
 def gen_from_iterable_dataset(iterable_dataset):
     # This generator will yield items from the iterable dataset
@@ -93,59 +75,74 @@ def transform_image(image, args, mean, std):
     return transform(image)
 
 
-def collate_fn(batch):
-    images = []
-    labels = []
+def get_hugging_face_tiny_imagenet_loaders(args):
+    def collate_fn(batch,args,mean,std):
+        # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
 
-    for item in batch:
-        # Ensure the image is a tensor. Convert if necessary.
-        image = item['image']
-        if not isinstance(image, torch.Tensor):
-            image = torch.tensor(image, dtype=torch.float)  # Ensure the data type is appropriate
+        transform = transforms.Compose([
+            # transforms.Grayscale(num_output_channels=3),  # Converts 1-channel grayscale to 3-channel grayscale
+            transforms.Resize((args.img_size, args.img_size)),
+            transforms.Lambda(lambda x: x.convert("RGB")),  # Convert image to RGB
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+        images, labels = [], []
+        for item in batch:
+            image = transform(item['image'])
+            label = torch.tensor(item['label'], dtype=torch.long)
+            images.append(image)
+            labels.append(label)
+        return torch.stack(images), torch.stack(labels)
+    
+    # Ensure the dataset is properly loaded with streaming set to True
+    # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+    train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
 
-        images.append(image)
+    # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+    test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
 
-        # Handling labels
-        label = item['label']
-        if not isinstance(label, torch.Tensor):
-            label = torch.tensor(label, dtype=torch.long)
+    # Setup DataLoader with the custom collate function
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+    )
 
-        labels.append(label)
-
-    # Stack all images and labels into tensors
-    images = torch.stack(images)
-    labels = torch.stack(labels)
-
-    return images, labels
-
-
-# def get_hugging_face_loaders(args):
-
-#     # Ensure the dataset is properly loaded with streaming set to True
-#     # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-#     train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
-
-#     # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-#     test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
-
-#     # Setup DataLoader with the custom collate function
-#     train_loader = DataLoader(
-#         train_dataset,
-#         batch_size=args.batch_size,
-#         collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-#     )
-
-#     test_loader = DataLoader(
-#         test_dataset,
-#         batch_size=args.batch_size,
-#         collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-#     )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+    )
 
 
-#     return train_loader, test_loader, mean, std
+    return train_loader, test_loader, mean, std
 
 
-def get_hugging_face_loaders(args, disk_mode=True):
+def get_hugging_face_imagenet_loaders(args, disk_mode=True):
+    def collate_fn(batch):
+        images = []
+        labels = []
+
+        for item in batch:
+            # Ensure the image is a tensor. Convert if necessary.
+            image = item['image']
+            if not isinstance(image, torch.Tensor):
+                image = torch.tensor(image, dtype=torch.float)  # Ensure the data type is appropriate
+
+            images.append(image)
+
+            # Handling labels
+            label = item['label']
+            if not isinstance(label, torch.Tensor):
+                label = torch.tensor(label, dtype=torch.long)
+
+            labels.append(label)
+
+        # Stack all images and labels into tensors
+        images = torch.stack(images)
+        labels = torch.stack(labels)
+
+        return images, labels
     # Define the dataset paths
     train_data_path = "./train_imagenet_animals"
     test_data_path = "./test_imagenet_animals"
@@ -173,6 +170,13 @@ def get_hugging_face_loaders(args, disk_mode=True):
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
 
     return train_loader, test_loader, mean, std
+
+
+def get_hugging_face_loaders(args,use_tiny=True):
+
+    if use_tiny:
+        return get_hugging_face_tiny_imagenet_loaders(args)
+    return get_hugging_face_imagenet_loaders(args)
 
 
 def load_and_process_datasets(args):        
@@ -344,19 +348,16 @@ def load_config(filename='config.json'):
         return config
     
 
-
-def config_to_model(config):
-    config = load_config(config)
+def load_model(model_path):
+    config = load_config(os.path.join(model_path,"config.json"))
     args = argparse.Namespace(**config)
     
     #unserialize
     args.mean_pixels = torch.tensor(config['mean_pixels'])
     args.std_pixels = torch.tensor(config['std_pixels'])
 
-    model = MAE(args)  
-    return model, args
+    args.mask_ratio = 0
 
-def load_model(model_path, config):
-    model, args = config_to_model(config)
-    model.load_state_dict(torch.load(model_path))
+    model = MAE(args)  
+    model.load_state_dict(torch.load(os.path.join(model_path,"model.pth")))
     return model, args

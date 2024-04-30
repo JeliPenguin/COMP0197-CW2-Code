@@ -90,6 +90,8 @@ def args_parser():
 
     parser.add_argument('--n_epochs',type=int, default =100)
     parser.add_argument('--batch_size',type=int, default=256)
+
+    parser.add_argument("--imagenet",action='store_true')
     # add an argument for a differnt test batch size
 
 

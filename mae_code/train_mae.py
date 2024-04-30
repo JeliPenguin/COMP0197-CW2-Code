@@ -29,7 +29,7 @@ import os
 import datetime
 import torch
 
-from mae_utils import get_hugging_face_loaders,get_loaders
+from mae_utils import get_hugging_face_loaders
 from mae_arch import MAE
 
 class Trainer:
@@ -37,7 +37,7 @@ class Trainer:
         self.args = args
         self.device = self.args.device 
         # self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_loaders(self.args)
-        self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(self.args)
+        self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(not self.args.imagenet)
         # also gets means and stds for unnormalizing
         print(f'Created dataset loaders using dataset in {self.args.dataset} ')
 

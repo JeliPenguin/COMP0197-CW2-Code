@@ -87,7 +87,7 @@ class Pipeline():
         else:     
             args.mean_pixels = torch.tensor(model_config['mean_pixels'])
             args.std_pixels = torch.tensor(model_config['std_pixels'])
-
+            args.mask_ratio = 0
             model = MAE(args)  
             model.load_state_dict(torch.load(model_checkpoint_dir))
             
