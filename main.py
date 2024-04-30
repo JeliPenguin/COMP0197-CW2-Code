@@ -9,6 +9,7 @@ def args_parser():
     parser.add_argument('--resnet', action='store_true')
     parser.add_argument('--facebook_mae', action='store_true')
     parser.add_argument('--test_mode', action='store_true')
+    parser.add_argument('--use_mae_decoder', action='store_true')
     # parser.add_argument('--gen_embed',action='store_true')
     parser.add_argument("--model", type=str,required=True, help="loads pretrained MAE model")
     parser.add_argument('--n_epochs',type=int, default =20)

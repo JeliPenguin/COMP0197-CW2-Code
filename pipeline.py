@@ -22,6 +22,7 @@ class Pipeline():
         self.facebook_mae = args.facebook_mae
         self.batch_size = args.batch_size
         self.n_epochs = args.n_epochs
+        self.use_mae_decoder = args.use_mae_decoder
 
         self.pretrained_encoder = self.load_pretrained_encoder(args.model)
 
@@ -33,6 +34,8 @@ class Pipeline():
         # elif self.facebook_mae:
         #     print("Using Facebook MAE")
         #     self.model = FinetuneDecoder(input_channels=2048,output_channels=3).to(self.device)
+        elif self.use_mae_decoder:
+            self.model = self.load_model(args.model)
         else:
             self.model = FinetuneDecoder(output_channels=3,output_size=self.img_size).to(self.device)
             # self.model = FeedForwardDecoder(12,1024).to(self.device)
@@ -84,16 +87,25 @@ class Pipeline():
         #     model = getattr(chkpt_dir, 'mae_vit_large_patch16')()
         #     checkpoint = torch.load(chkpt_dir, map_location='cpu')
         #     model.load_state_dict(checkpoint['model'], strict=False).to(self.device())
+            
+            for param in model.parameters():
+                param.requires_grad = False
         else:     
             args.mean_pixels = torch.tensor(model_config['mean_pixels'])
             args.std_pixels = torch.tensor(model_config['std_pixels'])
             args.mask_ratio = 0
             model = MAE(args)  
             model.load_state_dict(torch.load(model_checkpoint_dir))
+            for param in model.embed_patch_encoder.parameters():
+                param.requires_grad = False
+
+            for param in model.encoder.parameters():
+                param.requires_grad = False
+            
+            for param in model.encoder_norm.parameters():
+                param.requires_grad = False
             
         model.to(self.device)
-        for param in model.parameters():
-            param.requires_grad = False
         
         return model
     
@@ -156,6 +168,10 @@ class Pipeline():
     def predict(self,inputs):
         if self.resnet or self.facebook_mae:
             encoded = self.pretrained_encoder(inputs.to(self.device))
+        elif self.use_mae_decoder:
+            decoder_output,_ =  self.model(inputs)
+            reconstructed = self.model.reconstruct_image(decoder_output)
+            return reconstructed
         else:
             encoded,_,_ = self.pretrained_encoder(inputs.to(self.device))
             encoded = encoded.unsqueeze(1)
@@ -183,11 +199,11 @@ class Pipeline():
         #(inputs,targets)
         for batch_idx, sample in enumerate(loader, 0):
             optimizer.zero_grad()
-            #inputs = core.to_device(inputs)
-            #targets = core.to_device(targets)
+
             inputs, targets = sample[0].to(self.device), sample[1].to(self.device)
 
             outputs = self.predict(inputs)
+
 
             # The ground truth labels have a channel dimension (NCHW).
             # We need to remove it before passing it into
@@ -238,11 +254,10 @@ class Pipeline():
             torch.save(self.model.state_dict(), os.path.join("finetune.pt"))
             with torch.inference_mode():
                 # Test set performance report #
-                #core.to_device(model.eval())
                 
                 self.model.eval()
-                model_predictions = self.predict(test_inputs)
-                labels = core.to_device(test_targets)
+                model_predictions = self.predict(test_inputs.to(self.device))
+                labels = test_targets.to(self.device)
                 # print("Predictions Shape: {}".format(predictions.shape))
                 predictions = nn.Softmax(dim=1)(model_predictions)
 
@@ -252,10 +267,10 @@ class Pipeline():
                 # Create prediction for the mask:
                 predicted_mask = predicted_labels.to(torch.float)
 
-                iou = core.to_device(TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND))
+                iou = TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND).to(self.device)
                 iou_accuracy = iou(predicted_mask,labels)
 
-                pixel_metric = core.to_device(TM.classification.MulticlassAccuracy(3, average='micro'))
+                pixel_metric = TM.classification.MulticlassAccuracy(3, average='micro').to(self.device)
                 pixel_accuracy = pixel_metric(predicted_labels,labels)
 
                 report = f'[Epoch: {epoch:02d}] : Accuracy[Pixel: {pixel_accuracy:.4f}, IoU: {iou_accuracy:.4f}]'
@@ -273,8 +288,8 @@ class Pipeline():
         self.model.load_state_dict(torch.load("finetune.pt"))
         self.model.eval()
 
-        iou = core.to_device(TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND))
-        pixel_metric = core.to_device(TM.classification.MulticlassAccuracy(3, average='micro'))
+        iou = TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND).to(self.device)
+        pixel_metric = TM.classification.MulticlassAccuracy(3, average='micro').to(self.device)
 
         iou_accuracies = []
         pixel_accuracies = []
@@ -283,9 +298,9 @@ class Pipeline():
 
             for batch_idx, (inputs, targets) in enumerate(self.test_loader, 0):
 
-                inputs  = core.to_device(inputs)
+                inputs  = inputs.to(self.device)
 
-                targets = core.to_device(targets)
+                targets = targets.to(self.device)
                 predictions = self.predict(inputs)
 
                 pred_probabilities = nn.Softmax(dim=1)(predictions)
