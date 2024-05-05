@@ -97,32 +97,31 @@ def get_imagenet_loaders(args):
     # Ensure the dataset is properly loaded with streaming set to True
     if args.imagenet:
         print("Using ImageNet1k")
-        train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-        test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        train_loader, test_loader = get_hugging_face_imagenet_loaders(args)
+
     else:
         print("Using tiny imagenet")
         train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
         test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
 
-    # Setup DataLoader with the custom collate function
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-    )
+        # Setup DataLoader with the custom collate function
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+        )
 
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-    )
-
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=args.batch_size,
+            collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+        )
 
     return train_loader, test_loader, mean, std
 
 
-def get_hugging_face_imagenet_loaders(args, disk_mode=True):
-    def collate_fn(batch):
+def get_hugging_face_imagenet_loaders(args):
+    def collate_fn_batch(batch):
         images = []
         labels = []
 
@@ -146,31 +145,11 @@ def get_hugging_face_imagenet_loaders(args, disk_mode=True):
         labels = torch.stack(labels)
 
         return images, labels
-    # Define the dataset paths
-    train_data_path = "./train_imagenet_animals"
-    test_data_path = "./test_imagenet_animals"
 
-    if disk_mode and os.path.exists(train_data_path) and os.path.exists(test_data_path):
-        # Load datasets from disk
-        print('Loading datasets from disk.')
-        train_dataset = Dataset.load_from_disk(train_data_path)
-        test_dataset = Dataset.load_from_disk(test_data_path)
-    else:
-        # Load datasets in streaming mode and process
-        print('Loading datasets in streaming mode.')
-        train_dataset, test_dataset = load_and_process_datasets(args)
-        if disk_mode:
-            print('Saving training dataset to disk.')
-            train_dataset = Dataset.from_generator(partial(gen_from_iterable_dataset, train_dataset), features=train_dataset.features)
-            train_dataset.save_to_disk("./train_imagenet_animals")
+    train_dataset, test_dataset = load_and_process_datasets(args)
 
-            print('Saving test dataset to disk.')
-            test_dataset = Dataset.from_generator(partial(gen_from_iterable_dataset, test_dataset), features=test_dataset.features)
-            test_dataset.save_to_disk("./test_imagenet_animals")
-
-    # Prepare data loaders
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch, num_workers=5)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch, num_workers=5)
 
     return train_loader, test_loader, mean, std
 
@@ -275,12 +254,16 @@ def load_and_process_datasets(args):
         # 338     # Guinea pig, Cavia cobaya
     ]
 
-    # Filter the datasets to only include the pet classes
+    train_dataset = load_dataset("imagenet-1k", split="train", streaming=True, trust_remote_code=True)
+    test_dataset = load_dataset("imagenet-1k", split="validation", streaming=True, trust_remote_code=True)
+
     print('Applying transformations and filtering datasets.')
+    
     # transform_lambda = lambda x: {'image': transform_image(x['image'], args, mean, std), 'label': x['label']}
     def batch_transform(batch):
         # Apply the transform_image to each image in the batch
         batch['image'] = [transform_image(image, args, mean, std) for image in batch['image']]
+
         # The labels don't need transformation, just pass them through
         batch['label'] = batch['label']
         return batch
