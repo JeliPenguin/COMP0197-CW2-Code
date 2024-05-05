@@ -75,7 +75,7 @@ def transform_image(image, args, mean, std):
     return transform(image)
 
 
-def get_imagenet_loaders(args):
+def get_hugging_face_loaders(args):
     def collate_fn(batch,args,mean,std):
         # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
 
@@ -97,8 +97,9 @@ def get_imagenet_loaders(args):
     # Ensure the dataset is properly loaded with streaming set to True
     if args.imagenet:
         print("Using ImageNet1k")
-        train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-        test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+        # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        return get_hugging_face_imagenet_loaders(args)
     else:
         print("Using tiny imagenet")
         train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
@@ -173,14 +174,6 @@ def get_hugging_face_imagenet_loaders(args, disk_mode=True):
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn, num_workers=5)
 
     return train_loader, test_loader, mean, std
-
-
-def get_hugging_face_loaders(args):
-
-    return get_imagenet_loaders(args)
-    # if not args.imagenet:
-    #     return get_hugging_face_tiny_imagenet_loaders(args)
-    # return get_hugging_face_imagenet_loaders(args)
 
 
 def load_and_process_datasets(args):        
