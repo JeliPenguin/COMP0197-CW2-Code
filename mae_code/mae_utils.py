@@ -148,8 +148,8 @@ def get_hugging_face_imagenet_loaders(args):
 
     train_dataset, test_dataset = load_and_process_datasets(args)
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch, num_workers=5)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch, num_workers=5)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch)
 
     return train_loader, test_loader, mean, std
 
