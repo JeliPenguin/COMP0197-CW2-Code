@@ -75,7 +75,7 @@ def transform_image(image, args, mean, std):
     return transform(image)
 
 
-def get_hugging_face_tiny_imagenet_loaders(args):
+def get_imagenet_loaders(args):
     def collate_fn(batch,args,mean,std):
         # Set up the transformation: convert all images to 3 channels, resize, and convert to tensor
 
@@ -95,11 +95,14 @@ def get_hugging_face_tiny_imagenet_loaders(args):
         return torch.stack(images), torch.stack(labels)
     
     # Ensure the dataset is properly loaded with streaming set to True
-    # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-    train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
-
-    # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-    test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
+    if args.imagenet:
+        print("Using ImageNet1k")
+        train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+        test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+    else:
+        print("Using tiny imagenet")
+        train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
+        test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
 
     # Setup DataLoader with the custom collate function
     train_loader = DataLoader(
@@ -172,11 +175,12 @@ def get_hugging_face_imagenet_loaders(args, disk_mode=True):
     return train_loader, test_loader, mean, std
 
 
-def get_hugging_face_loaders(args,use_tiny=True):
+def get_hugging_face_loaders(args):
 
-    if use_tiny:
-        return get_hugging_face_tiny_imagenet_loaders(args)
-    return get_hugging_face_imagenet_loaders(args)
+    return get_imagenet_loaders(args)
+    # if not args.imagenet:
+    #     return get_hugging_face_tiny_imagenet_loaders(args)
+    # return get_hugging_face_imagenet_loaders(args)
 
 
 def load_and_process_datasets(args):        
