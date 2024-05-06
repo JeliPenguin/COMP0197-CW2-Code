@@ -208,4 +208,4 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.7)
 
     save_path = os.path.join("output", "segnet_dsc")
-    train_loop(model, train_loader, (test_inputs, test_targets), (1,2), optimizer, scheduler, save_path)
+    train_loop(model, train_loader, (test_inputs, test_targets), (1,21), optimizer, scheduler, save_path)
