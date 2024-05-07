@@ -84,8 +84,8 @@ def args_parser():
     
     
     # class tokens for encoder and decoder - open question for whether this helps for when final task is semantic segmentation
-    parser.add_argument('--no_cls_token_encoder',action='store_true', help= 'No cls token prepended to embedded token inputsfor the encoder.')
-    parser.add_argument('--no_cls_token_decoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the encoder.')
+    parser.add_argument('--no_cls_token_encoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the encoder.')
+    parser.add_argument('--no_cls_token_decoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the decoder.')
 
     parser.add_argument('--n_epochs',type=int, default =20)
     parser.add_argument('--batch_size',type=int, default=256)
