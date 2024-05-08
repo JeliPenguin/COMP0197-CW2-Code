@@ -97,26 +97,29 @@ def get_hugging_face_loaders(args):
     # Ensure the dataset is properly loaded with streaming set to True
     if args.imagenet:
         print("Using ImageNet1k")
-        # train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
-        # test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
+        test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
+        
+    elif args.partial_imagenet:
+        print("Using partial ImageNet1k")
         return get_hugging_face_imagenet_loaders(args)
     else:
         print("Using tiny imagenet")
         train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
         test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
 
-        # Setup DataLoader with the custom collate function
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=args.batch_size,
-            collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-        )
+    # Setup DataLoader with the custom collate function
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+    )
 
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=args.batch_size,
-            collate_fn=lambda batch: collate_fn(batch, args,mean,std)
-        )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        collate_fn=lambda batch: collate_fn(batch, args,mean,std)
+    )
 
     return train_loader, test_loader, mean, std
 
