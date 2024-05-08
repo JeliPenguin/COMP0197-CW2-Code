@@ -12,6 +12,8 @@ from torchvision.utils import save_image
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import BatchSampler, SequentialSampler
 
+
+from torchvision import datasets
 from torchvision.datasets import ImageFolder
 from torchvision import transforms as T
 from torch.utils.data import DataLoader
@@ -21,13 +23,15 @@ from torch.optim.lr_scheduler import LambdaLR
 
 
 
+
 from mae_arch import MAE
+from mae_utils import get_loaders
 
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mae_utils import save_config,get_loaders, load_model
+from mae_utils import load_model
 
 import os
 import argparse
@@ -48,16 +52,13 @@ import copy
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('model', help='path to a model file, to be loaded into pytorch')
+parser.add_argument('--model', type=str, help='path to a model file, to be loaded into pytorch')
+
 
 parser.add_argument('-d', '--dataset', type=str, help='path to the dataset of trials')
 parser.add_argument('-c', '--config', type=str, help='path to config file') # must be a .json file
 
 args = parser.parse_args()
-
-
-model, old_args = load_model(args.model ,args.config) #old args are the args used to train model in path
-
 
 
 
@@ -67,7 +68,7 @@ def visualize_comparisons(loader, model):
     # on a batch of images
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
    
-    model.self.args.device = device
+    model.args.device = device
     model.to(device)
     model.eval()
     with torch.no_grad():
@@ -77,7 +78,8 @@ def visualize_comparisons(loader, model):
           decoder_output, mask_idxs = model(images)
           reconstructions = model.reconstruct_image(decoder_output)
         
-          masks = model.create_visual_mask(images, mask_idxs, 4)
+          masks = model.create_visual_mask(images, mask_idxs,model.args.patch_size)
+          
           masked_images = images * masks
 
           #the number of examples to display (limited to a manageable number for visualization)
@@ -90,9 +92,9 @@ def visualize_comparisons(loader, model):
 
           # no. of rows in plot is the no. of samples in batch
           for i in range(batch_size):
-              imshow(masked_images[i], axes[i, 0])
-              imshow(reconstructions[i], axes[i, 1])
-              imshow(images[i], axes[i, 2])
+              imshow(masked_images[i], axes[i, 0],mean=model.args.mean_pixels,std=model.args.std_pixels)
+              imshow(reconstructions[i], axes[i, 1],mean=model.args.mean_pixels,std=model.args.std_pixels)
+              imshow(images[i], axes[i, 2],mean=model.args.mean_pixels,std=model.args.std_pixels)
 
           # Labeling columns
           columns = ['Masked Image', 'Reconstruction', 'Original Image']
@@ -105,12 +107,40 @@ def visualize_comparisons(loader, model):
 
 def imshow(img, ax, mean,std):
     # Helper function to unnormalize and show an image on a given Axes object.
+    device = img.device
     mean = mean.view(3, 1, 1).to(device)
     std = std.view(3, 1, 1).to(device)
     img = img * std + mean  # Unnormalize and move to CPU
     npimg = img.cpu().numpy()
     ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
     ax.axis('off')  # Hide axes ticks
+
+
+def get_test_loader(dataset_path,args):
+
+    # Define the transforms to resize the images and convert them to PyTorch tensors
+    transform = transforms.Compose([
+        transforms.Resize((args.img_size, args.img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],  
+                                std=[0.229, 0.224, 0.225])  
+    ])
+
+
+    dataset = datasets.ImageFolder(root=dataset_path, transform=transform)
+
+   
+    test_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+
+    return test_loader
+
+
+if __name__ == "__main__":
+    model, old_args = load_model(args.model ,args.config) #old args are the args used to train model in path
+
+    test_loader = get_test_loader(args.dataset,old_args)
+    visualize_comparisons(test_loader, model)
+
 
 
 

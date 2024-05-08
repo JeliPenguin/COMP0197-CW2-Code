@@ -1,9 +1,53 @@
 import torch
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, Subset, random_split
+import torchvision
+import torchvision.transforms as transforms
+
+
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import random_split
+from torch.optim.lr_scheduler import LambdaLR
+from torchvision.utils import save_image
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import BatchSampler, SequentialSampler
+
+
+from torchvision import datasets
+from torchvision.datasets import ImageFolder
+from torchvision import transforms as T
+from torch.utils.data import DataLoader
+import time
+import datetime
+from torch.optim.lr_scheduler import LambdaLR
+
+
+
+
+
+import matplotlib.pyplot as plt
 import numpy as np
-import json 
-import os 
+
+
+
+import os
+import argparse
+import pdb
+import sys
+import pickle
+import logging
+import random
+import csv
+import math
+import json
+import copy
+
+
+#imports from scripts 
+from mae_arch import MAE
+
+
+
 
 # todo - make this more efficient - want to calculatete the mean and std of pixel values automatically
 # we do this but there must be a way to do this without creating so many loaders
@@ -109,8 +153,10 @@ def load_config(filename='config.json'):
 
 
 def config_to_model(config):
-    args = argparse.Namespace(**config)
+    config = load_config(config)
     
+    args = argparse.Namespace(**config)
+   
     #unserialize
     args.mean_pixels = torch.tensor(config['mean_pixels'])
     args.std_pixels = torch.tensor(config['std_pixels'])
@@ -120,5 +166,11 @@ def config_to_model(config):
 
 def load_model(model_path, config):
     model, args = config_to_model(config)
-    model.load_state_dict(torch.load(model_path))
+
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
     return model, args
