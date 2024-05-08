@@ -19,7 +19,7 @@ from torch.optim.lr_scheduler import LambdaLR
 
 import matplotlib.pyplot as plt
 import numpy as np
-
+import pdb
 
 
 class DefaultArgs:
@@ -109,6 +109,7 @@ class MAE(nn.Module):
 
         x= self.encoder(x)
         x = self.encoder_norm(x)
+        
         #encoder and decoder have different depths - linear transformation to handle this as in MAE paper 
         x= self.enc_to_dec(x) # this is our patch embedding for the decoder, no need to linearly project again. in self.embed_patch_decoder
 
@@ -569,15 +570,6 @@ class MLP_class_head(nn.Module):
         return x
     
 
-
-
-
-
-
-
-
-
-
 def visualize_comparisons(loader, model):
     #compares masked original, image, autoencoder reconstruction
     # on a batch of images
@@ -627,6 +619,95 @@ def imshow(img, ax, mean,std):
     npimg = img.cpu().numpy()
     ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
     ax.axis('off')  # Hide axes ticks
+
+
+# fine tuning archs
+
+# e.g. usage:
+# load existing MAE model using model path
+# mae_model = MAE()
+
+# # initialize  encoder with parts from the existing MAE model
+# encoder = Encoder(mae_model.embed_patch_encoder, mae_model.encoder, mae_model.encoder_norm)
+# decoder = NaiveDecoderSETR(num_classes=3, input_channels=embed_dim) 
+# create full seg model:
+#segmodel = SETR(encoder, decoder)
+
+class PreTrainedEncoder(nn.Module):
+    def __init__(self,embed_patch_encoder, encoder, encoder_norm):
+
+        super().__init__()
+
+        self.embed_patch_encoder = embed_patch_encoder
+        self.encoder = encoder
+        self.encoder_norm = encoder_norm
+    
+    def forward(self, x):
+        #  input should be images of shape [batch_size, C, H,W ]
+        x = self.embed_patch_encoder(x)
+        x = self.encoder(x)
+        x = self.encoder_norm(x)
+        return x
+    
+
+#SETR:
+class SETR(nn.module):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+    
+    def forward(self,x):
+        x = self.encoder(x)
+        x = self.reshape_encoder_output(x)
+        x = self.decoder(x)
+        return x
+    
+
+
+    # for any choice of decoder from SETR, need to reshape ViT encoder features (for each batch the encoder output is a sequence of length [(H*W)/patch_size**2]* embed_dim ) to a standard 3D feature map of shape H/patch_size * W/patch_size * embed_dim
+
+    def reshape_encoder_output(self,encoder_output):
+        batch_size= encoder_output.shape[0]
+        C= encoder_output.shape[2]
+        H_prime = self.args.img_size // self.args.patch_size
+        # assuming square images
+        W_prime = H_prime
+        # reshape and permute to get 3D feature map
+        return encoder_output.view(batch_size, H_prime, W_prime, C).permute(0, 3, 1, 2)
+
+
+class NaiveDecoderSETR(nn.module):
+    def __init__(self, embed_dim, num_classes,patch_size):
+        #note patch_size is the patch size we're using when finetuning 
+        self.embed_dim = embed_dim
+        self.num_classes = num_classes
+        self.patch_size
+
+        # first 1x1 convolution to project Z to the desired number of classes
+        self.conv1 = nn.Conv2d(embed_dim, num_classes, kernel_size=1)
+        # sync batch norm w/RELU
+        self.bn1 = nn.BatchNorm2d(num_classes)
+        self.relu = nn.ReLU(inplace=True)
+        
+        # second 1x1 convolution
+        self.conv2 = nn.Conv2d(num_classes, num_classes, kernel_size=1)
+    def forward(self,x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+    
+        # upsample to the original image size - scale
+        x = F.interpolate(x, scale_factor=self.patch_size, mode='bilinear', align_corners=False)
+        return x
+
+# tidy up but for now usage:
+# for images, true_masks in dataloader :
+    # seg_model_predicted_masks = seg_model(images)
+    # loss = F.cross_entropy(predicted_masks,true_masks)
+    ## optimizer step ...
+
 
 
 
