@@ -104,7 +104,7 @@ class LMDP(MDP):
         self.get_pruned_labels()
         
 
-class FMPD(MDP):
+class FMDP(MDP):
     def __init__(self, args) -> None:
         super().__init__(args)
         print("Performing Feature Mapping-based DP") 

@@ -1,6 +1,6 @@
 import argparse
 import torch
-from prune import MDP
+from prune import LMDP,FMDP
 
 
 def parse_int_list(value):
@@ -31,7 +31,11 @@ if __name__ == "__main__":
     args = args_parser()
     args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
     print(args)
-    pruner = MDP(args)
+
+    if args.lmdp:
+        pruner = LMDP(args)
+    else:
+        pruner = FMDP(args)
     pruner.prune()
 
 
