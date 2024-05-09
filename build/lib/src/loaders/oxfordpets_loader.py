@@ -21,7 +21,7 @@ def gen_transform(img_size):
     return transform
 
 
-def custom_augmented_oxford_pets(img_size):
+def custom_augmented(img_size):
     download_images()
     download_annotations()
 

@@ -1,3 +1,17 @@
 Metadata-Version: 2.1
 Name: COMP0197
 Version: 0.1
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+## COMP0197-Applied Deep Learning
+
+# Install your project
+```
+pip install .
+```
+
+# Install your project in editable mode
+```
+pip install -e .
+```

@@ -3,6 +3,7 @@ setup.py
 COMP0197.egg-info/PKG-INFO
 COMP0197.egg-info/SOURCES.txt
 COMP0197.egg-info/dependency_links.txt
+COMP0197.egg-info/requires.txt
 COMP0197.egg-info/top_level.txt
 src/__init__.py
 src/dataset_pruning/__init__.py
