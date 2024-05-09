@@ -4,7 +4,7 @@ import torch
 import os
 import argparse
 import json
-from dataloaders import get_hugging_face_loader_OxfordPets,custom_augmented
+from loaders import get_hugging_face_loader_OxfordPets,custom_augmented
 import time
 import os
 import time

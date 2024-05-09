@@ -1,0 +1,15 @@
+README.md
+setup.py
+COMP0197.egg-info/PKG-INFO
+COMP0197.egg-info/SOURCES.txt
+COMP0197.egg-info/dependency_links.txt
+COMP0197.egg-info/top_level.txt
+src/__init__.py
+src/dataset_pruning/__init__.py
+src/dataset_pruning/main.py
+src/dataset_pruning/prune.py
+src/loaders/__init__.py
+src/loaders/core.py
+src/loaders/fetch_Oxford_IIIT_Pets.py
+src/loaders/imagenet_loader.py
+src/loaders/oxfordpets_loader.py

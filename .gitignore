@@ -4,3 +4,4 @@ __pycache__
 mae_embeddings
 MAE
 *.arrow
+.vscode
