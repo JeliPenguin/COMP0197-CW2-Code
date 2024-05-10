@@ -157,9 +157,7 @@ def get_hugging_face_imagenet_loaders(args):
     return train_loader, test_loader, mean, std
 
 
-def load_and_process_datasets(args):        
-    # Define the pet classes to keep
-    pet_classes = [
+def load_and_process_datasets(args,filter_classes=[
         1,      # Goldfish, Carassius auratus
         12,     # House finch, linnet, Carpodacus mexicanus
         87,     # African grey, African gray, Psittacus erithacus
@@ -247,7 +245,7 @@ def load_and_process_datasets(args):
         # 330,    # Rabbit, wood rabbit, cottontail, cottontail rabbit
         # 333,    # Hamster
         # 338     # Guinea pig, Cavia cobaya
-    ]
+    ]):        
 
     train_dataset = load_dataset("imagenet-1k", split="train", streaming=True, trust_remote_code=True)
     test_dataset = load_dataset("imagenet-1k", split="validation", streaming=True, trust_remote_code=True)
@@ -264,8 +262,8 @@ def load_and_process_datasets(args):
         return batch
 
     # Apply the transformations and filter the datasets
-    train_dataset = train_dataset.filter(lambda x: x['label'] in pet_classes).map(batch_transform, batched=True, batch_size=args.batch_size)
-    test_dataset = test_dataset.filter(lambda x: x['label'] in pet_classes).map(batch_transform, batched=True, batch_size=args.batch_size)
+    train_dataset = train_dataset.filter(lambda x: x['label'] in filter_classes).map(batch_transform, batched=True, batch_size=args.batch_size)
+    test_dataset = test_dataset.filter(lambda x: x['label'] in filter_classes).map(batch_transform, batched=True, batch_size=args.batch_size)
 
     return train_dataset, test_dataset
 
