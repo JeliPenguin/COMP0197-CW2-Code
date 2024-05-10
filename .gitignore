@@ -6,3 +6,4 @@ MAE
 *.arrow
 .vscode
 src/dataset_pruning/saves
+build
