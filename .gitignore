@@ -5,3 +5,4 @@ mae_embeddings
 MAE
 *.arrow
 .vscode
+src/dataset_pruning/saves
