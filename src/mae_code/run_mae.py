@@ -66,7 +66,7 @@ def args_parser():
 
 def do_mae_training(args):
 
-    checkpoint_dir_base = './MAE'
+    checkpoint_dir_base = './models/MAE'
 
     # creating checkpoint and run_id based on date dand time 
     args.run_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')[-7:]
