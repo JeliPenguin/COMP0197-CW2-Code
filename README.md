@@ -18,14 +18,14 @@ The current code offers both Label Mapping based and Feature Mapping based Datas
 ### Running Label Mapping Based Dataset Pruning
 Using the following command as an example, retaining 500 and 600 classes of the ImageNet dataset:
 ```
-python .\src\dataset_pruning\main.py --lmdp --reprune --retain_class_nums 500,600
+python .\src\dataset_pruning\run_pruning.py --lmdp --reprune --retain_class_nums 500,600
 ```
 
 
 ### Running Feature Mapping Based Dataset Pruning
 Using the following command as an example, retaining 500 and 600 classes of the ImageNet dataset:
 ```
-python .\src\dataset_pruning\main.py --fmdp --reprune --retain_class_nums 500,600
+python .\src\dataset_pruning\run_pruning.py --fmdp --reprune --retain_class_nums 500,600
 ```
 
 ### Additional Note
