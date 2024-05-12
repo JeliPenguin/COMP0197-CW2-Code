@@ -1,6 +1,6 @@
 import torch
-from train_mae import Trainer
-from mae_utils import save_config, calculate_mean_std
+from src.mae_code.train_mae import Trainer
+from src.mae_code.mae_utils import save_config
 import os
 import argparse
 import datetime
@@ -53,8 +53,8 @@ def args_parser():
     parser.add_argument('--no_cls_token_encoder',action='store_true', help= 'No cls token prepended to embedded token inputsfor the encoder.')
     parser.add_argument('--no_cls_token_decoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the encoder.')
 
-    parser.add_argument('--n_epochs',type=int, default =100)
-    parser.add_argument('--batch_size',type=int, default=32)
+    parser.add_argument('--n_epochs',type=int, default =10)
+    parser.add_argument('--batch_size',type=int, default=16)
 
     parser.add_argument("--imagenet",action='store_true')
     parser.add_argument("--download_imagenet",action='store_true')

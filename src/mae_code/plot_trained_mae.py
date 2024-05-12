@@ -2,16 +2,10 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-from mae_utils import get_hugging_face_loaders, load_model,mean,std, get_dataloaders
+from src.mae_code.mae_utils import get_hugging_face_loaders, load_model,mean,std
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-def visualize_comparisons(args,model):
-    if args.imagenet:
-        _, test_loader, _, _ = get_hugging_face_loaders(args)
-    else: 
-        _, test_loader, _, _ = get_dataloaders(args, shuffle=False)
+def visualize_comparisons(args,model,device):
+    _, test_loader, _, _ = get_hugging_face_loaders(args)
    
     model.to(device)
     model.eval()
@@ -36,9 +30,9 @@ def visualize_comparisons(args,model):
 
           # no. of rows in plot is the no. of samples in batch
           for i in range(batch_size):
-              imshow(masked_images[i], axes[i, 0])
-              imshow(reconstructions[i], axes[i, 1])
-              imshow(images[i], axes[i, 2])
+              imshow(masked_images[i], axes[i, 0],device)
+              imshow(reconstructions[i], axes[i, 1],device)
+              imshow(images[i], axes[i, 2],device)
 
           # Labeling columns
           columns = ['Masked Image', 'Reconstruction', 'Original Image']
@@ -49,7 +43,7 @@ def visualize_comparisons(args,model):
           plt.show()
            # Show only one batch for demonstration
 
-def imshow(img, ax):
+def imshow(img, ax, device):
     # Helper function to unnormalize and show an image on a given Axes object.
     mean_t = mean.view(3, 1, 1).to(device)
     std_t = std.view(3, 1, 1).to(device)
@@ -59,19 +53,16 @@ def imshow(img, ax):
     ax.axis('off')  # Hide axes ticks
 
 
+def view_mae_results(model_path):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, old_args = load_model(model_path,device)
+    old_args.batch_size = 4
+    old_args.imagenet = args.imagenet
+
+    visualize_comparisons(old_args, model)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help='path to a model file')
-    parser.add_argument("--imagenet",action='store_true')
-    parser.add_argument('--dataset',type=str)
-
     args = parser.parse_args()
-
-
-    model, old_args = load_model(args.model)
-    old_args.batch_size = 4
-    old_args.imagenet = args.imagenet
-    old_args.dataset = args.dataset
-
-    visualize_comparisons(old_args, model)
+    view_mae_results(args.model)

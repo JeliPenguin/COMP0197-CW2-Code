@@ -4,8 +4,9 @@ import torch
 import os
 import datetime
 import torch
-from mae_utils import get_hugging_face_loaders, load_model, mean, std, get_dataloaders
-from model import MAE
+from src.loaders.imagenet_loader import get_hugging_face_loaders
+from src.mae_code.mae_utils import load_model
+from src.mae_code.model import MAE
 import torch
 import torchvision.transforms as T
 import torchvision
@@ -32,8 +33,8 @@ class Trainer:
 
         if args.train_mode == "pretrain" or args.train_mode == "pruned_pretrain":
             self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(args)
-        else:
-            self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_dataloaders(args)
+        # else:
+        #     self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_dataloaders(args)
         # also gets means and stds for unnormalizing
         print(f'Created dataset loaders using dataset in {args.dataset}')
         print(self.args.device)
