@@ -268,7 +268,7 @@ def load_and_process_datasets(args,filter_classes):
     return train_dataset, test_dataset
 
 
-def calculate_mean_std(dataset, first=3000 ):
+def calculate_mean_std(dataset, first=3000):
     
     channel_sum = torch.zeros(3)
     channel_squared_sum = torch.zeros(3)
