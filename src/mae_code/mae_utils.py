@@ -59,12 +59,6 @@ def get_loaders(args):
 
 
 
-def gen_from_iterable_dataset(iterable_dataset):
-    # This generator will yield items from the iterable dataset
-    for item in iterable_dataset:
-        yield item
-
-
 def transform_image(image, args, mean, std):
     transform = transforms.Compose([
         transforms.Resize((args.img_size, args.img_size)),
@@ -95,16 +89,22 @@ def get_hugging_face_loaders(args):
         return torch.stack(images), torch.stack(labels)
     
     # Ensure the dataset is properly loaded with streaming set to True
+    if args.train_mode == "pruned_pretrain":
+        print("Pretraining with pruned ImageNet1k: ",args.retained_classes_dir)
+        filtered_classes = torch.load(args.retained_classes_dir)
+        # print(filtered_classes)
+        return get_hugging_face_imagenet_loaders(args,filtered_classes)
+    
+    if args.partial_imagenet:
+        print("Pretraining with partial ImageNet1k")
+        return get_hugging_face_imagenet_loaders(args)
+    
     if args.imagenet:
-        print("Using ImageNet1k")
+        print("Pretraining with full ImageNet1k")
         train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
         test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
-        
-    elif args.partial_imagenet:
-        print("Using partial ImageNet1k")
-        return get_hugging_face_imagenet_loaders(args)
     else:
-        print("Using tiny imagenet")
+        print("Pretraining with tiny imagenet")
         train_dataset = load_dataset('Maysee/tiny-imagenet', split="train", streaming=True,trust_remote_code=True)
         test_dataset = load_dataset("Maysee/tiny-imagenet", split="valid", streaming=True,trust_remote_code=True)
 
@@ -124,40 +124,7 @@ def get_hugging_face_loaders(args):
     return train_loader, test_loader, mean, std
 
 
-def get_hugging_face_imagenet_loaders(args):
-    def collate_fn_batch(batch):
-        images = []
-        labels = []
-
-        for item in batch:
-            image = item['image']
-            if not isinstance(image, torch.Tensor):
-                image = torch.tensor(image, dtype=torch.float)
-
-            images.append(image)
-
-            # Handling labels
-            label = item['label']
-            if not isinstance(label, torch.Tensor):
-                label = torch.tensor(label, dtype=torch.long)
-
-            labels.append(label)
-
-        # Stack all images and labels into tensors
-        images = torch.stack(images)
-        labels = torch.stack(labels)
-
-        return images, labels
-
-    train_dataset, test_dataset = load_and_process_datasets(args)
-
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch)
-
-    return train_loader, test_loader, mean, std
-
-
-def load_and_process_datasets(args,filter_classes=[
+def get_hugging_face_imagenet_loaders(args,filter_classes=[
         1,      # Goldfish, Carassius auratus
         12,     # House finch, linnet, Carpodacus mexicanus
         87,     # African grey, African gray, Psittacus erithacus
@@ -245,7 +212,40 @@ def load_and_process_datasets(args,filter_classes=[
         # 330,    # Rabbit, wood rabbit, cottontail, cottontail rabbit
         # 333,    # Hamster
         # 338     # Guinea pig, Cavia cobaya
-    ]):        
+    ]):
+    def collate_fn_batch(batch):
+        images = []
+        labels = []
+
+        for item in batch:
+            image = item['image']
+            if not isinstance(image, torch.Tensor):
+                image = torch.tensor(image, dtype=torch.float)
+
+            images.append(image)
+
+            # Handling labels
+            label = item['label']
+            if not isinstance(label, torch.Tensor):
+                label = torch.tensor(label, dtype=torch.long)
+
+            labels.append(label)
+
+        # Stack all images and labels into tensors
+        images = torch.stack(images)
+        labels = torch.stack(labels)
+
+        return images, labels
+
+    train_dataset, test_dataset = load_and_process_datasets(args,filter_classes)
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn_batch)
+
+    return train_loader, test_loader, mean, std
+
+
+def load_and_process_datasets(args,filter_classes):        
 
     train_dataset = load_dataset("imagenet-1k", split="train", streaming=True, trust_remote_code=True)
     test_dataset = load_dataset("imagenet-1k", split="validation", streaming=True, trust_remote_code=True)

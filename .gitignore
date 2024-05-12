@@ -5,5 +5,5 @@ mae_embeddings
 MAE
 *.arrow
 .vscode
-src/dataset_pruning/saves
+dataprune_saves
 build

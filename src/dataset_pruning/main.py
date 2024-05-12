@@ -19,7 +19,7 @@ def args_parser():
 
     parser.add_argument('--cuda', action='store_true', help='Force to use CUDA if available')
     parser.add_argument('--batch_size',type=int, default=64)
-    parser.add_argument('--retain_class_nums',type=parse_int_list, default=[500],help='List of class numbers to retain, separated by commas (e.g., 500,501,502)')
+    parser.add_argument('--retain_class_nums',type=parse_int_list, default=[50,70,84],help='List of class numbers to retain, separated by commas (e.g., 500,501,502)')
     parser.add_argument("--image_size",type=int,default=128)
     parser.add_argument('--reprune', action='store_true')
 

@@ -36,11 +36,8 @@ class Trainer:
     def __init__(self,args):
         self.args = args
         self.device = self.args.device 
-        # self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_loaders(self.args)
         self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(self.args)
         # also gets means and stds for unnormalizing
-        print(f'Created dataset loaders using dataset in {self.args.dataset} ')
-
 
         self.mae = MAE(self.args) 
         self.mae.to(self.device)

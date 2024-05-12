@@ -30,4 +30,16 @@ python .\src\dataset_pruning\main.py --fmdp --reprune --retain_class_nums 500,60
 
 ### Additional Note
 
-If you have already pruned previously, then you can ignore the reprune tag. The pruned class labels would be saved within the src/dataset_pruning/save folder. If you have cuda, then you can also speedup the pruning process by specifying the --cuda tag.
+If you have already pruned previously, then you can ignore the ```--reprune``` tag. The pruned class labels would be saved within the src/dataset_pruning/save folder. If you have cuda, then you can also speedup the pruning process by specifying the ```--cuda tag```.
+
+## Pre-training MAE
+
+### Normal Pre-training
+```
+python .\src\mae_code\run_mae_pruned.py
+```
+
+### Pre-training with Dataset Pruning
+```
+python .\src\mae_code\run_mae_pruned.py --train_mode pruned_pretrain
+```
