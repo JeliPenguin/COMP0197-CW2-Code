@@ -1,3 +1,8 @@
+/supervised_segmentation_benchmark/oxford-iiit-pet
+/oxford-iiit-pet
+/MAE
+__pycache__
+mae_code
 tiny-imagenet-200
 oxford-iiit-pet
 __pycache__
