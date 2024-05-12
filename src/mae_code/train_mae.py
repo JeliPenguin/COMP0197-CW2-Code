@@ -17,12 +17,10 @@ class Trainer:
     def __init__(self,args):
         self.device = args.device
 
-        if args.train_mode == "pretrain":
+        if args.train_mode == "pretrain" or args.train_mode == "pruned_pretrain":
             self.mae = MAE(args) 
             self.mae.to(self.device)
             self.args = args
-        elif args.train_mode == "pruned_pretrain":
-            pass
         else:
             self.mae, self.args = load_model(args.model_folder_path)
             self.mae.to(self.device)
