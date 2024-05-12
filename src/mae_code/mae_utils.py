@@ -15,46 +15,6 @@ from model import MAE
 mean = torch.Tensor([0.485, 0.456, 0.406]) # imagenet
 std = torch.Tensor([0.229, 0.224, 0.225]) # imagenet
 
-# todo - make this more efficient - want to calculatete the mean and std of pixel values automatically
-# we do this but there must be a way to do this without creating so many loaders
-def get_dataloaders(args, shuffle=True):
-    dataset_path = dataset_path = args.dataset
-    
-    basic_transforms = transforms.Compose([
-        transforms.Resize((args.img_size, args.img_size)),
-        transforms.ToTensor()
-    ])
-
-    dataset = datasets.ImageFolder(root=dataset_path, transform=basic_transforms)
-    total_size = len(dataset)
-    test_size = int(0.1 * total_size)  # 10% for testing
-    train_size = total_size - test_size  # 90% for training
-    mean, std = calculate_mean_std(dataset)
-    print(mean, std)
-    transform = transforms.Compose([
-        transforms.Resize((args.img_size, args.img_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)
-    ])
-
-    dataset = datasets.ImageFolder(root=dataset_path, transform= transform)
-    if shuffle:
-        train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    else:
-        train_dataset = Subset(dataset, range(train_size))
-        test_dataset = Subset(dataset, range(test_size))
-
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=4)
-
-    return train_loader, test_loader, mean, std
-
-
-
-def gen_from_iterable_dataset(iterable_dataset):
-    # This generator will yield items from the iterable dataset
-    for item in iterable_dataset:
-        yield item
 
 
 def transform_image(image, args, mean, std):

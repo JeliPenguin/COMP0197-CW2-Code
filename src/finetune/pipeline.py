@@ -1,5 +1,5 @@
-from src.mae_code.model import MAE
-from src.mae_code.mae_parts import Encoder
+from src.finetune.model import MAE
+from src.finetune.mae_parts import Encoder
 import torch
 import os
 import json
@@ -23,7 +23,9 @@ class DefaultArgs:
         self.patch_size = 4 # You can experiment with smaller sizes, like 8, if desired
         self.encoder_width = 1024  # Adjusted for a smaller model
         self.n_heads = 8  # Fewer heads given the reduced complexity
-        self.encoder_depth = 12  # Fewer layers 
+        self.encoder_depth = 12  # Fewer layers
+        self.decoder_width = 512  # Adjusted decoder width
+        self.decoder_depth = 8  # Fewer layers in decoder 
         self.mlp_ratio = 4
         self.dropout = 0.1
         self.mask_ratio = 0.8
@@ -31,8 +33,8 @@ class DefaultArgs:
         self.no_cls_token_decoder = False
         self.c = 3  # Number of colorchannels  (RGB)
         self.cuda = True
-        self.model = "./pretrained_encoder"
-        self.checkpoint_dir = "./trained_models"
+        self.model = "./models/pretrained_encoder"
+        self.checkpoint_dir = "./models/trained_models"
         self.batch_size = 16
         self.report_rate = 2
         self.skip_conn = False

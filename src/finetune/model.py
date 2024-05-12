@@ -1,5 +1,5 @@
 import torch
-from mae_parts import Encoder
+from src.finetune.mae_parts import Encoder
 import torch.nn as nn
 import torch.nn.functional as F
 

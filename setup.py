@@ -6,7 +6,6 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     # install_requires=[
-    #     'metrics',
     #     'torch==2.2',
     #     'torchvision==0.17',
     #     'torchmetrics',
