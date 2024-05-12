@@ -1,0 +1,11 @@
+tiny-imagenet-200
+oxford-iiit-pet
+__pycache__
+mae_embeddings
+MAE
+*.arrow
+.vscode
+dataprune_saves
+build
+COMP0197.egg-info
+models
