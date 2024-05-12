@@ -36,10 +36,10 @@ If you have already pruned previously, then you can ignore the ```--reprune``` t
 
 ### Normal Pre-training
 ```
-python .\src\mae_code\run_mae_pruned.py
+python .\src\mae_code\run_mae.py
 ```
 
 ### Pre-training with Dataset Pruning
 ```
-python .\src\mae_code\run_mae_pruned.py --train_mode pruned_pretrain
+python .\src\mae_code\run_mae.py --train_mode pruned_pretrain
 ```
