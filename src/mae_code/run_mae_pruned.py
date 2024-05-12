@@ -97,6 +97,7 @@ def args_parser():
     return args
 
 def do_mae_training(args):
+    checkpoint_dir_base = './MAE'
     args.run_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')[-7:]
     checkpoint_dir = os.path.join(checkpoint_dir_base, args.run_id)
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -115,11 +116,7 @@ def do_mae_training(args):
 if __name__ == "__main__":
     args = args_parser()
     
-    
     args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
-
-
-    checkpoint_dir_base = './MAE'
 
     if args.train_mode == "pruned_pretrain":
         retain_save_path = os.path.join("dataprune_saves",args.prune_method,"retained")
