@@ -10,6 +10,12 @@ pip install -e .
 pip install .
 ``` -->
 
+## Login to HuggingFace
+To login, use the provided login script:
+```
+python hg_login.py
+```
+
 
 ## ImageNet Pruning for efficient pretraining
 
