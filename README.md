@@ -1,14 +1,14 @@
 # COMP0197-Applied Deep Learning
 
-## Install your project
-```
-pip install .
-```
-
 ## Install your project in editable mode
 ```
 pip install -e .
 ```
+<!-- 
+## Build your project
+```
+pip install .
+``` -->
 
 
 ## ImageNet Pruning for efficient pretraining
@@ -23,7 +23,7 @@ python .\src\dataset_pruning\run_pruning.py --lmdp --reprune
 
 
 ### Running Feature Mapping Based Dataset Pruning
-Using the following command as an example, retaining 500 and 600 classes of the ImageNet dataset:
+Using the following command:
 ```
 python .\src\dataset_pruning\run_pruning.py --fmdp --reprune
 ```
