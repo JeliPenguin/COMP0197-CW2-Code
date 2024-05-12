@@ -1,7 +1,0 @@
-metrics
-torch
-torchvision
-numpy
-matplotlib
-torchmetrics
-datasets

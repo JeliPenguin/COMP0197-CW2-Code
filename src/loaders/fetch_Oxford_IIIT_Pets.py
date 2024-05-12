@@ -4,7 +4,7 @@ import torchvision
 import requests
 import os
 import tarfile
-import core as core
+import src.loaders.core as core
 
 
 def download_images():

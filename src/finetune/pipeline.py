@@ -1,20 +1,19 @@
-from model import MAE
-from mae_parts import Encoder
+from src.mae_code.model import MAE
+from src.mae_code.mae_parts import Encoder
 import torch
 import os
 import json
-from dataloaders import custom_augmented
+from src.loaders.oxfordpets_loader import custom_augmented_oxford_pets
 import time
 import os
 import time
 import torch
 import torch.nn as nn
-import core as core
+import src.loaders.core as core
 import torchmetrics as TM
 import torchvision
-from utils import dice_loss
+from src.finetune.utils import dice_loss
 from torch import optim
-from model import MAE
 import matplotlib.pyplot as plt
 import argparse
 
@@ -52,7 +51,7 @@ class Pipeline():
         self.model.to(self.device)
         print("LOADED ENCODER")
 
-        trainset, testset = custom_augmented(args.img_size)
+        trainset, testset = custom_augmented_oxford_pets(args.img_size)
         self.train_loader = torch.utils.data.DataLoader(trainset,
                                                     batch_size=self.batch_size,
                                                     shuffle=True)

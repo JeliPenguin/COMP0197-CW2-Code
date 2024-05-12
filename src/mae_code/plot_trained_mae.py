@@ -2,16 +2,16 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-from mae_utils import get_hugging_face_loaders, load_model,mean,std
+from mae_utils import get_hugging_face_loaders, load_model,mean,std, get_dataloaders
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def visualize_comparisons(args,model):
-    #compares masked original, image, autoencoder reconstruction
-    # on a batch of images
-    
-    _, test_loader, _, _ = get_hugging_face_loaders(args)
+    if args.imagenet:
+        _, test_loader, _, _ = get_hugging_face_loaders(args)
+    else: 
+        _, test_loader, _, _ = get_dataloaders(args, shuffle=False)
    
     model.to(device)
     model.eval()
@@ -19,13 +19,11 @@ def visualize_comparisons(args,model):
           batch = next(iter(test_loader))
           images = batch[0].to(device)
 
-
           decoder_output, mask_idxs = model(images)
           reconstructions = model.reconstruct_image(decoder_output)
         
           masks = model.create_visual_mask(images, mask_idxs, args.patch_size)
 
-          print(images.shape,masks.shape)
           masked_images = images * masks
 
           #the number of examples to display (limited to a manageable number for visualization)
@@ -65,25 +63,15 @@ def imshow(img, ax):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help='path to a model file')
+    parser.add_argument("--imagenet",action='store_true')
+    parser.add_argument('--dataset',type=str)
 
     args = parser.parse_args()
 
 
     model, old_args = load_model(args.model)
+    old_args.batch_size = 4
+    old_args.imagenet = args.imagenet
+    old_args.dataset = args.dataset
 
-    visualize_comparisons(old_args,model)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    visualize_comparisons(old_args, model)

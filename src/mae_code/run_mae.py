@@ -1,45 +1,9 @@
 import torch
-import torchvision
-import torchvision.transforms as transforms
-
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import random_split
-from torch.optim.lr_scheduler import LambdaLR
-from torchvision.utils import save_image
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import BatchSampler, SequentialSampler
-
-from torchvision.datasets import ImageFolder
-from torchvision import transforms as T
-from torch.utils.data import DataLoader
-import time
-import datetime
-from torch.optim.lr_scheduler import LambdaLR
-
-
 from train_mae import Trainer
-
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-from mae_utils import save_config,get_loaders, calculate_mean_std
-
+from mae_utils import save_config, calculate_mean_std
 import os
 import argparse
-import pdb
-import sys
-import pickle
-import logging
-import random
-import csv
-import math
-import json
-import copy
-
+import datetime
 
 # three modes:
     #pretrain just pretrains an encoder using masked auto encoder approach 
@@ -51,23 +15,23 @@ import copy
 
 def args_parser(): 
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--train_mode', choices = ['pretrain','finetune','scratch'], default='pretrain')
-    
+    parser.add_argument('--train_mode', choices = ['pretrain','finetune','pruned_pretrain'], default='pretrain')
+    parser.add_argument('--prune_method', choices = ['lm','fm'], default="fm")
 
     parser.add_argument('--colab', action='store_true', help='only use if running code in colab')
     parser.add_argument('--config', type=str, default=None, help='use args from a .json config file.')
     parser.add_argument('--cuda', action='store_true', help='Force to use CUDA if available')
 
+    parser.add_argument('--model_folder_path', help='path to a model file')
 
     # data 
-    parser.add_argument('--dataset', type=str, help='Path to the pre-train dataset assumes')
+    parser.add_argument('--dataset', type=str, help='Path to the dataset')
     
     # masked autoencoder arguments
     ## encoder 
     # todo: get image size from image in loader
     parser.add_argument('--mask_ratio', type=float, default = 0.8,help='proportion of tokens masked')
-    # parser.add_argument('--img_size',type = int, default=224, help='img_size H=W resolution of images input to encoder')
-    parser.add_argument('--img_size',type = int, default=64, help='img_size H=W resolution of images input to encoder')
+    parser.add_argument('--img_size',type = int, default=128, help='img_size H=W resolution of images input to encoder')
     parser.add_argument('--c',type=int, default= 3, help='number of colour channels. default 3 for RGB color')
     parser.add_argument('--patch_size', type=int, default=4)
     parser.add_argument('--encoder_width', type=int, default =1024,help='embedding dimension for encoder inputs')
@@ -77,6 +41,7 @@ def args_parser():
     parser.add_argument('--n_heads', type=int,default=16) # NB embed dim must be divisible by n_heads for multihead attention 
     parser.add_argument('--mlp_ratio', type=int,default=4)
     parser.add_argument('--dropout', type=float, default = 0.1,help='dropout for MLP blocks in transformer blocks')
+    parser.add_argument('--train_split', type=float, default = 0.8,help='Train Split Size')
     
     ## decoder arguments 
     parser.add_argument('--decoder_depth',type =int, default=8)
@@ -89,43 +54,24 @@ def args_parser():
     parser.add_argument('--no_cls_token_decoder',action='store_true', help= 'No cls token prepended to embedded token inputs for the encoder.')
 
     parser.add_argument('--n_epochs',type=int, default =100)
-    parser.add_argument('--batch_size',type=int, default=256)
+    parser.add_argument('--batch_size',type=int, default=32)
 
     parser.add_argument("--imagenet",action='store_true')
-    parser.add_argument("--partial_imagenet",action='store_true')
+    parser.add_argument("--download_imagenet",action='store_true')
     # add an argument for a differnt test batch size
 
 
     args = parser.parse_args()
     return args
 
+def do_mae_training(args):
 
+    checkpoint_dir_base = './MAE'
 
-
-
-    
-
-
-if __name__ == "__main__":
-    args = args_parser()
-    
-    
-    args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
-
-
-    # directory for model checkpoints -
-    # if running in colab: get rid of after testing
-    if args.colab:
-        from google.colab import drive
-        drive.mount('/content/drive')
-        checkpoint_dir_base = '/content/drive/My Drive/MAEs/'
-    else:
-        checkpoint_dir_base = './MAE'
-
-        
     # creating checkpoint and run_id based on date dand time 
     args.run_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')[-7:]
     checkpoint_dir = os.path.join(checkpoint_dir_base, args.run_id)
+    print(checkpoint_dir)
     os.makedirs(checkpoint_dir, exist_ok=True)
     args.checkpoint_dir = checkpoint_dir
 
@@ -137,4 +83,21 @@ if __name__ == "__main__":
     
     # useful to examine for each run, needed for plot_train
     save_config(args)
+
     trainer.train_model()
+
+if __name__ == "__main__":
+    args = args_parser()
+    args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
+
+    if args.train_mode == "pruned_pretrain":
+        retain_save_path = os.path.join("dataprune_saves",args.prune_method,"retained")
+        pruned_save = os.listdir(retain_save_path)
+        for retained_classes in pruned_save:
+            # creating checkpoint and run_id based on date dand time 
+            args.retained_classes_dir = os.path.join(retain_save_path,retained_classes)
+            do_mae_training(args)
+    else:
+        do_mae_training(args)
+    
+    

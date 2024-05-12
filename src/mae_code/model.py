@@ -1,34 +1,14 @@
-
-# data
-#import modules
 import torch
-import torchvision
-import torchvision.transforms as transforms
-
-
+from src.mae_code.mae_parts import Encoder
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import random_split
-from torch.optim.lr_scheduler import LambdaLR
-from torchvision.utils import save_image
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import BatchSampler, SequentialSampler
-import time
-from torch.optim.lr_scheduler import LambdaLR
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-
 
 class DefaultArgs:
     def __init__(self):
-        self.img_size = 64  # adjusted for Tiny ImageNet
+        self.img_size = 128  # adjusted for Tiny ImageNet
         self.patch_size = 4 # You can experiment with smaller sizes, like 8, if desired
         self.encoder_width = 512  # Adjusted for a smaller model
         self.n_heads = 8  # Fewer heads given the reduced complexity
-        self.encoder_depth = 8  # Fewer layers
+        self.encoder_depth = 5  # Fewer layers [5]
         self.decoder_width = 256  # Adjusted decoder width
         self.decoder_depth = 4  # Fewer layers in decoder
         self.mlp_ratio = 4.0
@@ -36,43 +16,26 @@ class DefaultArgs:
         self.mask_ratio = 0.75
         self.no_cls_token_encoder = False
         self.no_cls_token_decoder = False
-        self.c = 3  # Number of color channels (RGB)
-
+        self.c = 3  # Number of colorchannels  (RGB)
 
 
 class MAE(nn.Module):
-    def __init__(self,args=DefaultArgs):
+    def __init__(self,args=DefaultArgs()):
         super().__init__()
-        self.args =args 
-
-        print(args)
-                 
-                #  img_size = args.image_size, channels= 3, num_classes =10, embed_dim=1024, patch_size=self.patch_size, num_heads=10, encoder_depth=12, mlp_ratio=4, dropout=0.1):
+        self.args = args 
+        
+        self.encoder_block = Encoder(args)       
+                
         self.seq_len = (self.args.img_size**2)/(self.args.patch_size**2)
         self.seq_len = int(self.seq_len)
-        #todos - these aren't really necessary
-        # standard for ViTs
-
         self.flat_image_patch_size = self.args.patch_size**2 * self.args.c
 
-        #cls token encoder 
-        self.encoder_cls = not self.args.no_cls_token_encoder 
         self.decoder_cls = not self.args.no_cls_token_decoder
-        
-        # encoder 
-       
-        self.embed_patch_encoder= Embedder(self.args.patch_size, self.seq_len,self.flat_image_patch_size,self.args.encoder_width,cls=self.encoder_cls, pos_embed_sin_cos=True)
-        
-        self.encoder= nn.Sequential(*[TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
-                                     for l in range(self.args.encoder_depth)])
-        self.encoder_norm = nn.LayerNorm(self.args.encoder_width)
-        
-
-        
+                
         #MAE stuff:
         self.unshuffle_index = 0 # will be tensor of permutations for undoing the shuffle operation done when masking
         self.keep_len = int(self.seq_len *(1-self.args.mask_ratio)) # used to select the first (1-mask ratio) of the shuffled patches
-        
+
         #decoder
         self.decoder_depth = self.args.decoder_depth #arguments
         self.decoder_width = self.args.decoder_width# arguments
@@ -98,21 +61,11 @@ class MAE(nn.Module):
 
     def initialize_params(self):
         torch.nn.init.normal_(self.mask_token)
-        
-    def encoder_block(self,x):
-        x = self.embed_patch_encoder(x) # converts into patches, embeds patches, append cls token , then add positional embedding
-
-        
-        x, unshuffle_indices, mask_idxs = self.rand_shuffle_and_sample(x)
-
-        x= self.encoder(x)
-        x = self.encoder_norm(x)
-
-        return x,unshuffle_indices,mask_idxs
+    
 
     def forward(self,x):
         # input should be images of shape [batch_size, C, H,W ]
-        x,unshuffle_indices,mask_idxs = self.encoder_block(x)
+        x, _, unshuffle_indices,mask_idxs = self.encoder_block(x)
         
         #encoder and decoder have different depths - linear transformation to handle this as in MAE paper 
         x= self.enc_to_dec(x) # this is our patch embedding for the decoder, no need to linearly project again. in self.embed_patch_decoder
@@ -157,10 +110,8 @@ class MAE(nn.Module):
 
     def mse_per_patch(self,preds,targs):
         mse_per_patch = nn.MSELoss(reduction= 'mean')(preds,targs)
-        
         return mse_per_patch
     
-
 
     # tidy only needs, mask_idxs as input, rest can be accessed from self.args
     def create_visual_mask(self, images,mask_idxs, patch_size):
@@ -197,9 +148,6 @@ class MAE(nn.Module):
         full_mask = full_mask.unsqueeze(1).repeat(1, 3, 1, 1)  # Shape: [batch_size, 3, H, W]
 
         return full_mask
-        
-
-
 
     def get_masked_patches(self, x, mask_idxs):
         # use torch.gather to do this efficiently
@@ -209,55 +157,6 @@ class MAE(nn.Module):
 
         masked_patches = torch.gather(x,1, mask_idxs.unsqueeze(2).expand(-1,-1,x.shape[2]))
         return masked_patches
-
-
-    
-
-
-    # given a set of embedded patches 
-
-    def rand_shuffle_and_sample(self,x):
-        #returns subset (1-mask ratio) of randomly selected tokens to be passed to the encode
-        # the indicess for unshuffling later
-        # x should be of shape batch_size, seq_length, D]
-        
-        batch_size = x.shape[0]
-
-        # print(x.shape)
-        
-
-
-        # model doesn't need to shuffled indices, only the inverse indices i.e. the indices to reverse the unshuffling. 
-
-
-        # generate random permutations for each batch's token sequence
-        shuffled_indices = torch.stack([torch.randperm(self.seq_len) for _ in range(batch_size)]) 
-
-        
-
-        # shuffle the sequences using the generated indices
-        shuffled_tokens = torch.stack([x[i, idx] for i, idx in enumerate(shuffled_indices)]) 
-        # 'enumerating' on a tensor creates an iteratable and the first element of our iteration variable i indexes the batch, the second indexes the sequences dimension. stack 
-
-        # but with a permuation indexer. i.e. a list of all the indices for that dimension but in a different order. We do this for each batch. 
-        # to unshuffle, use the inverse indices. This is the inverse of the permutation defined by shuffled indices
-        
-        inverse_indices = torch.argsort(shuffled_indices, dim=1) 
-
-        #take the first (1-mask_ratio) shuffled tokens 
-        unmasked_patches = shuffled_tokens[:, :self.keep_len, :]
-
-       
-
-        # to do: make this more efficient - this func. is called each train iteration which happens way more often than evaluation
-    
-        # image masks for comparing reconstruction
-         
-        masks_idxs = shuffled_indices[:, self.keep_len:] # indices of patches in each batch of the original image that are masked.  
-        # when evaluating you'lll have a sequence of the pure input image patches before encoder embeds them in
-        # then take this sequence of pure image patches[mask_ids]= 0 then plot images # these will be patched out images
-
-        return unmasked_patches, inverse_indices,  masks_idxs
 
     def add_mask_tokens_and_unshuffle(self,x, inverse_indices):
 
@@ -316,8 +215,6 @@ class MAE(nn.Module):
         x = x.permute(0, 3, 1, 4, 2, 5).contiguous()
         images = x.view(x.shape[0], self.args.c, self.args.img_size, self.args.img_size)
         return images
-        
-    
 
 
     # should take image size 
@@ -395,27 +292,18 @@ class Embedder( nn.Module):
     
         self.patch_size = patch_size
         self.in_dim = in_dim 
-        
-        
+
         self.cls = cls
-        
-        
-        
         # embed encoder tokens with lin proj.
         if not self.decoder:
             self.patch_embed=  nn.Linear(in_dim, embed_dim)
         
-        
-        
         # introduce cls_token to be prepended to each sequence. Increments the effective sequence length and the cls token needs a positional embedding
-        
+
         if cls:
             self.cls_token = nn.Parameter(torch.zeros(1, 1,embed_dim))
 
         self.pos_embed  = pos_embedder(self.seq_len + (1 if cls else 0 ),embed_dim,sin_cos=True) # 
-
-        
-
 
     def forward(self,tokens):
         # for encoder(decoder =False) inputs should be images of shape [batch_size, C,H,W]
@@ -438,17 +326,11 @@ class Embedder( nn.Module):
         # always add positional embedding
         z = self.pos_embed(z) 
 
-
-
-
         #patch_embeds= torch.einsum('ik,blk -> bli',[self.patch_embed.weight, patches]) # project each patch in each sequence
          # NB: einsum in this way is cool but it's not necessary and nn.linear is much faster.
         #Key observation: nn.Linear can operate on tensors with more than two dimensions
         #i.e. tensor of shape [batch_size, *, input_features], nn.Linear applies the linear transformation to the last dimension (input_features) of the tensor,
         #treating all preceding dimensions as part of the batch. this is pretty cool
-
-        
-
         return z
     
 
@@ -470,12 +352,6 @@ class Embedder( nn.Module):
         patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()
         patches = patches.view(batch_size, -1, c * self.patch_size * self.patch_size)
         return patches
-
-
-
-
-
-
 
 # should take image size 
 def patch_to_img(self, patches):
@@ -501,9 +377,6 @@ def patch_to_img(self, patches):
     return images
 
 
-
-
-
 class TransformerEncoderBlock(nn.Module):
     def __init__(self,embed_dim=1024, num_heads=12, mlp_ratio = 4.0, dropout=0.1):
         super().__init__()
@@ -522,18 +395,10 @@ class TransformerEncoderBlock(nn.Module):
         x_transposed = x.transpose(0,1)
         msa_x, _ = self.msa(x_transposed,x_transposed,x_transposed)
         msa_x = msa_x.transpose(0,1)
-
         x = msa_x + res_x
-
         x_prime =  self.mlp(self.ln2(x)) + x
 
         return x_prime
-
-
-
-
-
-
 
 
 class MLP(nn.Module):
@@ -547,8 +412,8 @@ class MLP(nn.Module):
         self.ff_1 = nn.Linear(input_dim , hidden_width)
         self.gelu = nn.GELU()
         self.dropout_1 = nn.Dropout(dropout_prop)
-        self.ff_2=nn.Linear(hidden_width,input_dim)
-        self.dropout_2 =nn.Dropout(dropout_prop)
+        self.ff_2= nn.Linear(hidden_width,input_dim)
+        self.dropout_2 = nn.Dropout(dropout_prop)
 
     def forward(self, x):
         x= self.ff_1(x)
@@ -571,71 +436,3 @@ class MLP_class_head(nn.Module):
         x= self.tanh(x)
         return x
     
-
-
-
-
-
-
-
-
-
-
-def visualize_comparisons(loader, model):
-    #compares masked original, image, autoencoder reconstruction
-    # on a batch of images
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-   
-    model.self.args.device = device
-    model.to(device)
-    model.eval()
-    with torch.no_grad():
-          batch = next(iter(loader))
-          images = batch[0].to(device)
-
-          decoder_output, mask_idxs = model(images)
-          reconstructions = model.reconstruct_image(decoder_output)
-        
-          masks = model.create_visual_mask(images, mask_idxs, 4)
-          masked_images = images * masks
-
-          #the number of examples to display (limited to a manageable number for visualization)
-          batch_size = images.size(0)
-          if batch_size > 4:
-              print("Batch size is too large for effective visualization. Reducing to 4 for display.")
-              batch_size = 4  # Adjust batch size here if needed
-
-          fig, axes = plt.subplots(batch_size, 3, figsize=(15, 5 * batch_size))  # 3 columns for each type of image
-
-          # no. of rows in plot is the no. of samples in batch
-          for i in range(batch_size):
-              imshow(masked_images[i], axes[i, 0])
-              imshow(reconstructions[i], axes[i, 1])
-              imshow(images[i], axes[i, 2])
-
-          # Labeling columns
-          columns = ['Masked Image', 'Reconstruction', 'Original Image']
-          for ax, col in zip(axes[0], columns):
-              ax.set_title(col)
-
-          plt.subplots_adjust(wspace=0.1, hspace=0.1)  # Adjust the spacing between images
-          plt.show()
-           # Show only one batch for demonstration
-
-def imshow(img, ax, mean,std):
-    # Helper function to unnormalize and show an image on a given Axes object.
-    mean = mean.view(3, 1, 1).to(device)
-    std = std.view(3, 1, 1).to(device)
-    img = img * std + mean  # Unnormalize and move to CPU
-    npimg = img.cpu().numpy()
-    ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
-    ax.axis('off')  # Hide axes ticks
-
-
-
-
-
-
-
-
-

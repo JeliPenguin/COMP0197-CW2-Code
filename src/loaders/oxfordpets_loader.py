@@ -2,8 +2,8 @@ from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from fetch_Oxford_IIIT_Pets import download_annotations,download_images,OxfordIIITPetsAugmented
-import core
+from src.loaders.fetch_Oxford_IIIT_Pets import download_annotations,download_images,OxfordIIITPetsAugmented
+import src.loaders.core as core
 import os
 
 
