@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-
-
-
+import torch.nn.functional as F
 # adds positional embedding after initial token embedding
 class pos_embedder(nn.Module):
     def __init__(self,seq_len,embed_dim,sin_cos=False):
@@ -135,7 +133,7 @@ class TransformerEncoderBlock(nn.Module):
         x = msa_x + res_x
         x_prime =  self.mlp(self.ln2(x)) + x
 
-        return x_prime, res_x
+        return x_prime
 
 
 class MLP(nn.Module):
@@ -184,29 +182,18 @@ class Encoder(nn.Module):
         self.flat_image_patch_size = self.args.patch_size**2 * self.args.c
 
         self.embed_patch_encoder= Embedder(self.args.patch_size, self.seq_len,self.flat_image_patch_size,self.args.encoder_width,cls=self.encoder_cls, pos_embed_sin_cos=True)
-        self.encoder1 = TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
-        self.encoder2 = TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
-        self.encoder3 = TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
-        self.encoder4 = TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
-        self.encoder5 = TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
-        # self.encoder6 = TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
+        self.encoder= nn.Sequential(*[TransformerEncoderBlock(embed_dim=self.args.encoder_width,num_heads=self.args.n_heads , mlp_ratio = 4, dropout=0.1)
+                                     for l in range(self.args.encoder_depth)])
         self.encoder_norm = nn.LayerNorm(self.args.encoder_width)
         self.keep_len = int(self.seq_len *(1-self.args.mask_ratio)) # used to select the first (1-mask ratio) of the shuffled patches
 
     def forward(self, x):
         x = self.embed_patch_encoder(x) # converts into patches, embeds patches, append cls token , then add positional embedding
         x, unshuffle_indices, mask_idxs = self.rand_shuffle_and_sample(x)
-
-        # Encoder pathway
-        x, e1 = self.encoder1(x)
-        x, e2 = self.encoder2(x)
-        x, e3 = self.encoder3(x)
-        x, e4 = self.encoder4(x)
-        x, e5 = self.encoder5(x)
+        x= self.encoder(x)
 
         x = self.encoder_norm(x)
-        res_x = torch.stack([e1, e2, e3, e4, e5])
-        return x, res_x, unshuffle_indices, mask_idxs
+        return x, unshuffle_indices, mask_idxs
 
 
     def rand_shuffle_and_sample(self,x):
@@ -230,4 +217,67 @@ class Encoder(nn.Module):
         # when evaluating you'lll have a sequence of the pure input image patches before encoder embeds them in
         # then take this sequence of pure image patches[mask_ids]= 0 then plot images # these will be patched out images
         return unmasked_patches, inverse_indices,  masks_idxs
+
+class SegmentHead(nn.Module):
+    def __init__(self, in_ch=1024, output_shape=(128, 128), bilinear=True):
+        super(SegmentHead, self).__init__()
+        self.output_shape = output_shape
+        self.up6 = (Up(15, 8, bilinear=bilinear, up_scale=1))
+        self.outc = (OutConv(8, 1))
+
+    def forward(self, x):
+        x = self.up6(x)
+        x = self.outc(x)
+        x = F.interpolate(x, size=self.output_shape, mode='bilinear', align_corners=False)
+        x = torch.sigmoid(x)
+        return x
     
+    def process_res(self, res):
+        b, n, c = res.shape
+        res = res.permute(0, 2, 1).view(b, c, 17, 12)
+        return res
+    
+class Up(nn.Module):
+    """Upscaling then double conv"""
+
+    def __init__(self, in_channels, out_channels, bilinear=False, up_scale=2):
+        super().__init__()
+
+        if bilinear:
+            self.up = nn.Upsample(scale_factor=up_scale, mode='bilinear', align_corners=True)  
+            self.conv = DoubleConv(in_channels, out_channels)
+        else: 
+            self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
+            self.conv = DoubleConv(in_channels // 2, out_channels)
+
+    def forward(self, x1):
+        x1 = self.up(x1)
+        return self.conv(x1)
+
+
+class OutConv(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(OutConv, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+
+    def forward(self, x):
+        return self.conv(x)
+
+class DoubleConv(nn.Module):
+    """(convolution => [BN] => ReLU) * 2"""
+
+    def __init__(self, in_channels, out_channels, mid_channels=None):
+        super().__init__()
+        if not mid_channels:
+            mid_channels = out_channels
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(mid_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.double_conv(x)

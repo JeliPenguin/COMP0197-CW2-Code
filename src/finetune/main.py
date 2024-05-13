@@ -24,17 +24,14 @@ def args_parser():
     parser.add_argument('--output_display_period', type=int, default=10, help='Output display period')
     parser.add_argument('--batch_print_period', type=int, default=5, help='Batch print period')
     parser.add_argument('--n_epoch', type=int, default=5, help='Batch print period')
-    parser.add_argument('--cuda', action='store_true', help='Use CUDA')
     parser.add_argument('--finetune_percentage', type=float, default=1.0,help='Percentage of finetune dataset to train on')
     parser.add_argument("--refinetune",action='store_true', help='Re-finetune model')
     parser.add_argument("--save_name",type=str, default="finetune.pt")
     return parser.parse_args()
 
-    
-if __name__ == "__main__":
-    args = args_parser()
-    
-    args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
+
+def do_fine_tune(args):
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     pipeline = Pipeline(args)
 
@@ -45,5 +42,12 @@ if __name__ == "__main__":
         pipeline.train(n_epoch=args.n_epoch, freeze_encoder=False, freeze_decoder=False)
     else:
         pipeline.load_model_checkpoint("./models/trained_models/100_epoch.pt")
+    
     pipeline.test()
     pipeline.show_examples()
+
+    
+if __name__ == "__main__":
+    args = args_parser()
+    
+    do_fine_tune(args)

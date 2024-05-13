@@ -9,7 +9,7 @@ setup(
     #     'torch==2.2',
     #     'torchvision==0.17',
     #     'torchmetrics',
-    #     'datasets'
+    #     'datasets',
     # ],
     python_requires='>=3.10',
     packages=find_packages(),

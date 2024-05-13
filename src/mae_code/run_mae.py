@@ -1,44 +1,9 @@
 import torch
-import torchvision
-import torchvision.transforms as transforms
-
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import random_split
-from torch.optim.lr_scheduler import LambdaLR
-from torchvision.utils import save_image
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import BatchSampler, SequentialSampler
-
-from torchvision.datasets import ImageFolder
-from torchvision import transforms as T
-from torch.utils.data import DataLoader
-import time
 import datetime
-from torch.optim.lr_scheduler import LambdaLR
-
-
 from train_mae import Trainer
-
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-from src.mae_code.mae_utils import save_config,get_loaders, calculate_mean_std
-
+from src.mae_code.mae_utils import save_config
 import os
 import argparse
-import pdb
-import sys
-import pickle
-import logging
-import random
-import csv
-import math
-import json
-import copy
 
 
 # three modes:
@@ -55,14 +20,13 @@ def args_parser():
     parser.add_argument('--prune_method', choices = ['lm','fm'], default="fm")
 
     parser.add_argument('--config', type=str, default=None, help='use args from a .json config file.')
-    parser.add_argument('--cuda', action='store_true', help='Force to use CUDA if available')
     
     # masked autoencoder arguments
     ## encoder 
     # todo: get image size from image in loader
     parser.add_argument('--mask_ratio', type=float, default = 0.8,help='proportion of tokens masked')
     # parser.add_argument('--img_size',type = int, default=224, help='img_size H=W resolution of images input to encoder')
-    parser.add_argument('--img_size',type = int, default=64, help='img_size H=W resolution of images input to encoder')
+    parser.add_argument('--img_size',type = int, default=128, help='img_size H=W resolution of images input to encoder')
     parser.add_argument('--c',type=int, default= 3, help='number of colour channels. default 3 for RGB color')
     parser.add_argument('--patch_size', type=int, default=4)
     parser.add_argument('--encoder_width', type=int, default =1024,help='embedding dimension for encoder inputs')
@@ -96,7 +60,7 @@ def args_parser():
 
 
 def do_mae_training(args):
-    checkpoint_dir_base = './MAE'
+    checkpoint_dir_base = './models/MAE'
     args.run_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')[-7:]
     checkpoint_dir = os.path.join(checkpoint_dir_base, args.run_id)
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -116,7 +80,7 @@ def do_mae_training(args):
 if __name__ == "__main__":
     args = args_parser()
     
-    args.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.train_mode == "pruned_pretrain":
         retain_save_path = os.path.join("dataprune_saves",args.prune_method,"retained")

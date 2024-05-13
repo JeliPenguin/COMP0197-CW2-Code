@@ -2,10 +2,10 @@ from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from src.loaders.fetch_Oxford_IIIT_Pets import download_annotations,download_images,OxfordIIITPetsAugmented
+from src.loaders.fetch_Oxford_IIIT_Pets import download_annotations,download_images
 import src.utils.core as core
 import os
-
+import torchvision
 
 mean = torch.Tensor([0.4810, 0.4490, 0.3959]) 
 std = torch.Tensor([0.2627, 0.2579, 0.2660])
@@ -95,3 +95,122 @@ def get_hugging_face_loader_OxfordPets(img_size,batch_size):
         )
 
         return train_loader, test_loader, mean, std
+
+
+def original(training_set_proportion = None):
+    """
+    Fetch Oxford pets training and testing data original data (no transforms applied)
+    :return: trainset,testset (torchvision datasets)
+    """
+
+    download_images()
+    download_annotations()
+
+    # Fetch Oxford IIIT Pets Segmentation dataset using torchvision:
+
+    trainset = OxfordIIITPetsAugmented(root = os.getcwd(),
+                                       split="trainval",
+                                       target_types="segmentation",
+                                       download=True,)
+
+    if training_set_proportion is not None:
+        if (training_set_proportion <= 1) and (training_set_proportion > 0):
+            training_set_size = int(len(trainset) * training_set_proportion)
+            trainset,_ = torch.utils.data.random_split(trainset, [training_set_size,len(trainset) - training_set_size])
+
+    testset = torchvision.datasets.OxfordIIITPet(root=os.getcwd(),
+                                                 split="test",
+                                                 target_types="segmentation",
+                                                 download=True)
+
+    return trainset,testset
+
+
+def augmented(training_set_proportion = None):
+    """
+    Fetch Oxford pets training and testing data and return augmented versions.
+    :return: trainset,testset (torchvision datasets)
+    """
+
+    download_images()
+    download_annotations()
+
+    # Fetch Oxford IIIT Pets Segmentation dataset using torchvision:
+    root = os.getcwd()
+
+    trainset = OxfordIIITPetsAugmented(root = root,
+                                       split="trainval",
+                                       target_types="segmentation",
+                                       download=True,
+                                        **core.transform_dict)
+
+    if training_set_proportion is not None:
+        if (training_set_proportion <= 1) and (training_set_proportion > 0):
+            training_set_size = int(len(trainset) * training_set_proportion)
+            trainset,_ = torch.utils.data.random_split(trainset, [training_set_size,len(trainset) - training_set_size])
+
+
+    testset = OxfordIIITPetsAugmented(root=root,
+                                     split="test",
+                                     target_types="segmentation",
+                                     download=True,
+                                     **core.transform_dict)
+
+    return trainset,testset
+
+
+class OxfordIIITPetsAugmented(torchvision.datasets.OxfordIIITPet):
+    """
+    Source : https://github.com/dhruvbird/ml-notebooks/blob/main/pets_segmentation/oxford-iiit-pets-segmentation-using-pytorch-segnet-and-depth-wise-separable-convs.ipynb
+    This class creates a dataset wrapper that allows for custom image augmentations on both the target and label
+     (segmentation mask) images.
+    These custom image augmentations are needed since we want to perform transforms such as:
+     1. Random horizontal flip
+     2. Image resize
+    and these operations need to be applied consistently to both the input image and the segmentation mask.
+    """
+    def __init__(
+            self,
+            root: str,
+            split: str,
+            target_types="segmentation",
+            download=False,
+            pre_transform=None,
+            post_transform=None,
+            pre_target_transform=None,
+            post_target_transform=None,
+            common_transform=None,
+    ):
+        super().__init__(
+            root=root,
+            split=split,
+            target_types=target_types,
+            download=download,
+            transform=pre_transform,
+            target_transform=pre_target_transform,
+        )
+        self.post_transform = post_transform
+        self.post_target_transform = post_target_transform
+        self.common_transform = common_transform
+
+    def __len__(self):
+        return super().__len__()
+
+    def __getitem__(self, idx):
+        (input, target) = super().__getitem__(idx)
+
+        # Common transforms are performed on both the input and the labels
+        # by creating a 4 channel image and running the transform on both.
+        # Then the segmentation mask (4th channel) is separated out.
+        if self.common_transform is not None:
+            both = torch.cat([input, target], dim=0)
+            both = self.common_transform(both)
+            (input, target) = torch.split(both, 3, dim=0)
+        # end if
+
+        if self.post_transform is not None:
+            input = self.post_transform(input)
+        if self.post_target_transform is not None:
+            target = self.post_target_transform(target)
+
+        return (input, target)

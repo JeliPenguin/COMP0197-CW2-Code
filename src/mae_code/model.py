@@ -1,5 +1,5 @@
 import torch
-from mae_parts import Encoder
+from src.mae_code.mae_parts import Encoder
 import torch.nn as nn
 
 class DefaultArgs:
@@ -24,7 +24,7 @@ class MAE(nn.Module):
         super().__init__()
         self.args = args 
         
-        self.encoder_block = Encoder(args)       
+        self.encoder_block = Encoder(args) 
                 
         self.seq_len = (self.args.img_size**2)/(self.args.patch_size**2)
         self.seq_len = int(self.seq_len)
@@ -65,7 +65,7 @@ class MAE(nn.Module):
 
     def forward(self,x):
         # input should be images of shape [batch_size, C, H,W ]
-        x, _, unshuffle_indices,mask_idxs = self.encoder_block(x)
+        x, unshuffle_indices,mask_idxs = self.encoder_block(x)
         
         #encoder and decoder have different depths - linear transformation to handle this as in MAE paper 
         x= self.enc_to_dec(x) # this is our patch embedding for the decoder, no need to linearly project again. in self.embed_patch_decoder

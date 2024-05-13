@@ -40,10 +40,12 @@ class DefaultArgs:
         self.output_display_period = 10
         self.batch_print_period = 5
         self.save_name = "finetune"
+        self.finetune_percentage = 1
 
 class Pipeline():
     def __init__(self,args=DefaultArgs()) -> None:
-        self.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
+        print("Performing MAE Finetuning")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Using device: ",self.device)
         self.report_rate = args.report_rate
         self.batch_size = args.batch_size
@@ -54,14 +56,17 @@ class Pipeline():
             self.model.encoder = self.load_encoder(args.model)
         self.model.to(self.device)
         print("LOADED ENCODER")
-
-        trainset, testset = custom_augmented_oxford_pets(args.img_size)
+        print("Finetuning on dataset proportion: ",args.finetune_percentage)
+        trainset, testset = custom_augmented_oxford_pets(args.img_size,args.finetune_percentage)
         self.train_loader = torch.utils.data.DataLoader(trainset,
                                                     batch_size=self.batch_size,
                                                     shuffle=True)
         self.test_loader = torch.utils.data.DataLoader(testset,
                                                     batch_size=self.batch_size,
                                                     shuffle=False)
+        
+        self.save_dir = os.path.join(args.checkpoint_dir,self.save_name)
+        os.makedirs(self.save_dir, exist_ok=True)
     
     def load_encoder(self, model_dir):
         model_config_dir = os.path.join(model_dir,"config.json")
@@ -118,7 +123,8 @@ class Pipeline():
                 running_samples,
                 running_loss / (batch_idx + 1),
                 running_dice / (batch_idx + 1),
-                ))        
+                ))     
+
         if epoch % self.args.output_display_period == 0:
             mask_pred = (outputs > 0.5).float()
             targets_grid = torchvision.utils.make_grid(mask_pred.detach().cpu(), nrow=8)
@@ -159,7 +165,7 @@ class Pipeline():
             print(f"[Elapsed time:{T:0.1f}][Epoch: {epoch:02d}][Learning Rate: {optimizer.param_groups[0]['lr']}]")
             training_loss, training_dice = self.train_model(self.model, epoch, train_loader, criterion, optimizer)
 
-            torch.save(self.model.state_dict(), os.path.join(self.args.checkpoint_dir, f"{self.save_name}.pt"))
+            torch.save(self.model.state_dict(), os.path.join(self.save_dir, f"{self.save_name}.pt"))
             with torch.inference_mode():
                 # Test set performance report #
                 self.model.eval()
@@ -184,7 +190,9 @@ class Pipeline():
             self.history["training_dice"].append(training_dice)
             self.history["validation_dice"].append(validation_dice.detach().cpu())
             self.history["pixel_accuracy"].append(pixel_accuracy.detach().cpu())
-            torch.save(self.model.state_dict(), os.path.join(self.history, "history.pt"))
+
+            torch.save(self.model.state_dict(), os.path.join(self.save_dir, f"{self.save_name}.pt"))
+            torch.save(self.history, os.path.join(self.save_dir, f"{self.save_name}_history.pt"))
 
     
     def plot_history(self):

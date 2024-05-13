@@ -1,41 +1,18 @@
 # data
 #import modules
 import torch
-import torchvision
-import torchvision.transforms as transforms
-
-import pdb
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import random_split
-from torch.optim.lr_scheduler import LambdaLR
-from torchvision.utils import save_image
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import BatchSampler, SequentialSampler
-import time
-from torch.optim.lr_scheduler import LambdaLR
-from torchvision.datasets import ImageFolder
-from torchvision import transforms as T
-from torch.utils.data import DataLoader
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-import time
-
 import os
 import datetime
 import torch
 
 from src.loaders.imagenet_loader import get_hugging_face_loaders
-from src.mae_code.mae_arch import MAE
+from src.mae_code.model import MAE
 
 class Trainer:
     def __init__(self,args):
         self.args = args
         self.device = self.args.device 
+        print("Using device: ",self.device)
         self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(self.args)
         # also gets means and stds for unnormalizing
 
@@ -101,15 +78,13 @@ class Trainer:
 
 
 
-    def train_model(self, print_freq=100):
+    def train_model(self, print_freq=10):
         model = self.mae
         num_epochs = self.args.n_epochs
         
    
         for epoch in range(num_epochs):
             train_loss = self.train_one_epoch(model, self.train_loader, self.optimizer, self.device, print_freq)
-            if epoch == 0:
-                print(f'Training MAE: \n device{self.args.device} \n dataset {self.args.dataset}')
 
             val_loss = self.validate(model, self.val_loader, self.device)
             print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss}, Validation Loss: {val_loss}")

@@ -7,15 +7,16 @@ import time
 import torch
 import torch.nn as nn
 import src.utils.core as core
-import src.segnet_bm.metrics as metrics
+import argparse
 import src.segnet_bm.segnet as segnet
-import src.loaders.fetch_Oxford_IIIT_Pets as OxfordPets
+from src.loaders.oxfordpets_loader import augmented
 import torchmetrics as TM
 
 class SegNetTrainer():
-    def __init__(self,model,save_name,batch_size=16) -> None:
+    def __init__(self,model,save_name,batch_size=16,dataset_proportion=1) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Using device: ",self.device)
+        print("Training on train set proportion: ",dataset_proportion)
 
         self.batch_size = batch_size
 
@@ -29,6 +30,9 @@ class SegNetTrainer():
         self.criterion = nn.CrossEntropyLoss(reduction='mean')
 
         self.save_path = os.path.join("./models/segnet", save_name)
+
+        # Create training set loader
+        self.trainset,self.testset = augmented(dataset_proportion)
 
         self.training_loss = []
         self.validation_loss = []
@@ -45,7 +49,7 @@ class SegNetTrainer():
         """
 
         start_time = time.time()
-        batch_report_rate = 1 # Report every [batch_report_rate] batches
+        batch_report_rate = 50 # Report every [batch_report_rate] batches
 
         self.model.train()
         # end if
@@ -163,14 +167,13 @@ class SegNetTrainer():
     def do_full_training(self,epochs):
         
 
-        # Create training set loader
-        trainset,testset = OxfordPets.augmented()
+        
 
-        train_loader = torch.utils.data.DataLoader(trainset,
+        train_loader = torch.utils.data.DataLoader(self.trainset,
                                                 batch_size=self.batch_size,
                                                 shuffle=True)
 
-        test_loader = torch.utils.data.DataLoader(testset,
+        test_loader = torch.utils.data.DataLoader(self.testset,
                                                 batch_size=self.batch_size,
                                                 shuffle=False)
         
@@ -193,23 +196,32 @@ class SegNetTrainer():
         return (self.training_loss, self.validation_loss, self.iou, self.pixel_accuracy)
 
 
-def standard_segnet_training(epochs=20):
+def standard_segnet_training(epochs=100,dataset_proportion=1):
     # Run standard segnet model:
     model = segnet.ImageSegmentation(kernel_size=3)
-    trainer = SegNetTrainer(model,"segnet_standard")
+    trainer = SegNetTrainer(model,f"segnet_standard_{dataset_proportion}",dataset_proportion=dataset_proportion)
     trainer.do_full_training(epochs)
     return trainer.metrics_record()
 
 
-def segnet_dsc_training(epochs=20):
+def segnet_dsc_training(epochs=100,dataset_proportion=1):
     # Run segnet + DSC:
     model = segnet.ImageSegmentationDSC(kernel_size=3)
-    trainer = SegNetTrainer(model,"segnet_dsc")
+    trainer = SegNetTrainer(model,f"segnet_dsc_{dataset_proportion}",dataset_proportion=dataset_proportion)
     trainer.do_full_training(epochs)
     return trainer.metrics_record()
 
 
+def args_parser(): 
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--dataset_proportion', type=float, default=1)
+    args = parser.parse_args()
+    return args
+
 if __name__ == '__main__':
-    standard_segnet_training()
-    segnet_dsc_training()
+    args = args_parser()
+    print(args)
+    standard_segnet_training(epochs=args.epochs,dataset_proportion=args.dataset_proportion)
+    segnet_dsc_training(epochs=args.epochs,dataset_proportion=args.dataset_proportion)
     
