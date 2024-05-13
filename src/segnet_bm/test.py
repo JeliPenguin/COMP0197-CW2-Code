@@ -9,30 +9,7 @@ import matplotlib.pyplot as plt
 
 # Define the two models [this assumes you have saved models from training in the output dir]
 
-dataset_proportions = [0.5,0.8,1]
-
-models = [
-    {'name': "SegNet Standard Model 0.5",
-        'model': segnet.ImageSegmentation(kernel_size=3),
-        'checkpt': "./models/segnet/segnet_standard_0.5/segnet.pt"},
-    {'name': "SegNet depthwise separable convolution Model 0.5",
-            'model': segnet.ImageSegmentationDSC(kernel_size=3),
-            'checkpt': "./models/segnet/segnet_dsc_0.5/segnet.pt"},  
-    {'name': "SegNet Standard Model 0.8",
-        'model': segnet.ImageSegmentation(kernel_size=3),
-        'checkpt': "./models/segnet/segnet_standard_0.8/segnet.pt"},
-    {'name': "SegNet depthwise separable convolution Model 0.8",
-            'model': segnet.ImageSegmentationDSC(kernel_size=3),
-            'checkpt': "./models/segnet/segnet_dsc_0.8/segnet.pt"},  
-    {'name': "SegNet Standard Model 1",
-        'model': segnet.ImageSegmentation(kernel_size=3),
-        'checkpt': "./models/segnet/segnet_standard_1/segnet.pt"},
-    {'name': "SegNet depthwise separable convolution Model 1",
-            'model': segnet.ImageSegmentationDSC(kernel_size=3),
-            'checkpt': "./models/segnet/segnet_dsc_1/segnet.pt"},  
-
-]
-
+dataset_proportions = [0.1,0.2,0.5,0.8,1]
 
 def test_performance(model_dict,test_loader):
 
@@ -80,6 +57,8 @@ def test_performance(model_dict,test_loader):
 
         print("Test Dataset Accuracy:")
         print(f"Pixel Accuracy: {pixel_tensor.mean():.4f}, IoU Accuracy: {iou_tensor.mean():.4f}")
+
+        return pixel_tensor.mean(),iou_tensor.mean()
     
 
 def show_examples(model_dict,test_loader):
@@ -133,17 +112,32 @@ def test_segnet(model):
     core.load_model_from_checkpoint(model['model'],model['checkpt'])
     
     with torch.inference_mode():
-        # Accuracy of the model
-        test_performance(model,test_loader)
-
         # Dislplay some examples of predicitons + ground truth:
         show_examples(model,test_loader)
+
+        # Accuracy of the model
+        return test_performance(model,test_loader)
+
+
+        
 
 
 def test_all_segnets():
     # Create loader for test data:
-    for model in models:
-        test_segnet(model)
+    results = {}
+    for p in dataset_proportions:
+        print("Testing SegNets trained on proportion: ",p)
+        segnet_model = {'name': f"SegNet Standard Model {p}",
+        'model': segnet.ImageSegmentation(kernel_size=3),
+        'checkpt': f"./models/segnet/segnet_standard_{p}/segnet.pt"}
+
+        segnet_dsc_model = {'name': f"SegNet depthwise separable convolution Model {p}",
+                'model': segnet.ImageSegmentationDSC(kernel_size=3),
+                'checkpt': f"./models/segnet/segnet_dsc_{p}/segnet.pt"}
+        
+        results[p] = [test_segnet(segnet_model),test_segnet(segnet_dsc_model)]
+    
+    return results
    
 
 

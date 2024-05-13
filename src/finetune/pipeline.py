@@ -255,6 +255,7 @@ class Pipeline():
 
             print("Test Dataset Accuracy:")
             print(f"Pixel Accuracy: {pixel_tensor.mean():.4f}, IoU Accuracy: {iou_tensor.mean():.4f}")
+        return pixel_tensor.mean(),iou_tensor.mean()
 
     def show_data_samples(self):
         (test_inputs, test_targets) = next(iter(self.test_loader))

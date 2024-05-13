@@ -31,6 +31,9 @@ If you don't have a valid token, use the provided login script:
 python hg_login.py
 ```
 
+## Comparison Summary
+To view the summary of all experiments, please check the ```summary.ipynb```
+
 ## Pre-training MAE
 
 ### Normal Pre-training
