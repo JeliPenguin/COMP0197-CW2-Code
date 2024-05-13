@@ -30,7 +30,7 @@ def train_model(epoch,model, loader, optimizer,USE_CROSS_ENTROPY_LOSS = True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     start_time = time.time()
-    batch_report_rate = 1 # Report every [batch_report_rate] batches
+    batch_report_rate = 50 # Report every [batch_report_rate] batches
 
     #core.to_device(model.train())
     model.to(device)
@@ -109,6 +109,9 @@ def train_loop(model, loader, test_data, epochs, optimizer, scheduler,output_pat
 
     test_inputs, test_targets = test_data
     epoch_i, epoch_j = epochs
+
+    print("Training model for ",epoch_j-epoch_i," epochs ...")
+
     start_time = time.time()
     for epoch in range(epoch_i, epoch_j):
         T = time.time() - start_time
@@ -195,7 +198,9 @@ if __name__ == '__main__':
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.7)
 
     save_path = os.path.join("output", "segnet_standard")
-    train_loop(model,train_loader, (test_inputs, test_targets), (1, 21), optimizer, scheduler, save_path)
+    train_loop(model,train_loader, (test_inputs, test_targets), (1, 101), optimizer, scheduler, save_path)
+
+    exit()
 
 
     # Run segnet + DSC:

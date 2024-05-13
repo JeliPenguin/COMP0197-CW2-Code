@@ -81,7 +81,7 @@ def download_annotations():
             print("Failed to download Oxford pets data [annotations] from [%s]" % url)
             print(error)
 
-def original():
+def original(training_set_size = None):
     """
     Fetch Oxford pets training and testing data original data (no transforms applied)
     :return: trainset,testset (torchvision datasets)
@@ -97,6 +97,9 @@ def original():
                                                   target_types="segmentation",
                                                   download=False)
 
+    if training_set_size is not None:
+        if (training_set_size < len(trainset)) and (training_set_size > 0):
+            trainset,_ = torch.utils.data.random_split(trainset, [training_set_size,len(trainset) - training_set_size])
 
     testset = torchvision.datasets.OxfordIIITPet(root=os.getcwd(),
                                                  split="test",
@@ -106,7 +109,7 @@ def original():
     return trainset,testset
 
 
-def augmented():
+def augmented(training_set_size = None):
     """
     Fetch Oxford pets training and testing data and return augmented versions.
     :return: trainset,testset (torchvision datasets)
@@ -123,6 +126,10 @@ def augmented():
                                        target_types="segmentation",
                                        download=True,
                                         **core.transform_dict)
+
+    if training_set_size is not None:
+        if (training_set_size < len(trainset)) and (training_set_size > 0):
+            trainset,_ = torch.utils.data.random_split(trainset, [training_set_size,len(trainset) - training_set_size])
 
 
     testset = OxfordIIITPetsAugmented(root=root,

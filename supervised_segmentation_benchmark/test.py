@@ -64,6 +64,7 @@ def test_performance(model_dict,test_loader):
             custom_iou_tensor = torch.FloatTensor(custom_iou_accuracies)
 
             print("Test Dataset Accuracy:")
+            # Note mean of batch IoU values could depend on batch size (not a linear operator)
             print(f"Pixel Accuracy: {pixel_tensor.mean():.4f}, IoU Accuracy: {iou_tensor.mean():.4f}, Custom IoU Accuracy: {custom_iou_tensor.mean():.4f}")
     else:
 
@@ -73,12 +74,17 @@ def test_performance(model_dict,test_loader):
 
             for batch_idx, (inputs, targets) in enumerate(test_loader, 0):
 
-                inputs = core.to_device(inputs)
-                targets = core.to_device(targets)
-                predictions = model(inputs)
+                # inputs/predictions have size : batch_size x 3 (ch) x  H x H (where data was resized H x H)
+                # targets have size : batch_size x 1 x  H x H
 
-                pred_probabilities = nn.Softmax(dim=1)(predictions)
-                pred_labels = predictions.argmax(dim=1)
+                inputs = core.to_device(inputs) # values in interval [0.0,1.0]
+                targets = core.to_device(targets) # values in {0,1,2}:trimap
+                predictions = model(inputs) # positive values
+
+                pred_probabilities = nn.Softmax(dim=1)(predictions) # values in interval [0.0,1.0]
+
+                # Argmax over three prediction channels:
+                pred_labels = predictions.argmax(dim=1) # Values in {0,1,2}
 
                 # Add a value 1 dimension at dim=1
                 pred_labels = pred_labels.unsqueeze(1)
@@ -152,20 +158,20 @@ if __name__ == '__main__':
                'model': segnet.ImageSegmentationDSC(kernel_size=3),
                'checkpt': "./output/segnet_dsc/segnet.pt"}
 
+   model_3 = {'name': "SegNet Standard Model Colab",
+              'model': segnet.ImageSegmentation(kernel_size=3),
+              'checkpt': "./output/SavedModels/segnet_standard/Colab/segnet.pt"}
 
-    # Load the two models:
-   core.load_model_from_checkpoint(model_1['model'],model_1['checkpt'])
-   core.load_model_from_checkpoint(model_2['model'],model_2['checkpt'])
 
-   with torch.inference_mode():
+   models = [model_3]
 
-        # Accuracy of the model 1
-        test_performance(model_1,test_loader)
+   for model in models:
 
-        # Accuracy of the model 2
-        test_performance(model_2,test_loader)
+       core.load_model_from_checkpoint(model['model'], model['checkpt'])
 
-        # Dislplay some examples of predicitons + ground truth:
-        show_examples(model_1,test_loader)
+       with torch.inference_mode():
+           # Accuracy of the model
+           test_performance(model, test_loader)
 
-        show_examples(model_2,test_loader)
+           show_examples(model, test_loader)
+
