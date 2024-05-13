@@ -149,6 +149,12 @@ class SegNetTrainer():
 
             torch.save(self.model.state_dict(), os.path.join(self.save_path, "segnet.pt"))
 
+            torch.save(self.training_loss, os.path.join(self.save_path, "train_loss.pt"))
+            torch.save(self.validation_loss, os.path.join(self.save_path, "val_loss.pt"))
+            torch.save(self.iou, os.path.join(self.save_path, "iou.pt"))
+            torch.save(self.pixel_accuracy, os.path.join(self.save_path, "pixel_acc.pt"))
+            
+
             if self.scheduler is not None:
                 self.scheduler.step()
 

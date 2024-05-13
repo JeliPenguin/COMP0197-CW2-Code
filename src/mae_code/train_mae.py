@@ -1,57 +1,68 @@
 # data
 #import modules
 import torch
+import torchvision
+import torchvision.transforms as transforms
+
+import pdb
+
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import random_split
+from torch.optim.lr_scheduler import LambdaLR
+from torchvision.utils import save_image
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import BatchSampler, SequentialSampler
+import time
+from torch.optim.lr_scheduler import LambdaLR
+from torchvision.datasets import ImageFolder
+from torchvision import transforms as T
+from torch.utils.data import DataLoader
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import time
+
 import os
 import datetime
 import torch
+
 from src.loaders.imagenet_loader import get_hugging_face_loaders
-from src.mae_code.mae_utils import load_model
-from src.mae_code.model import MAE
-import torch
-import torchvision.transforms as T
-import torchvision
-# Convert a pytorch tensor into a PIL image
-t2img = T.ToPILImage()
+from src.mae_code.mae_arch import MAE
 
 class Trainer:
     def __init__(self,args):
-        self.device = args.device
-
-        if args.train_mode == "pretrain" or args.train_mode == "pruned_pretrain":
-            self.mae = MAE(args) 
-            self.mae.to(self.device)
-            self.args = args
-        else:
-            self.mae, self.args = load_model(args.model_folder_path)
-            self.mae.to(self.device)
-            args.img_size = self.args.img_size
-            self.args.device = args.device
-            self.args.run_id = args.run_id
-            self.args.batch_size = args.batch_size
-
-        if args.train_mode == "pretrain" or args.train_mode == "pruned_pretrain":
-            self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(args)
-        # else:
-        #     self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_dataloaders(args)
+        self.args = args
+        self.device = self.args.device 
+        self.train_loader, self.val_loader, self.mean_pixels, self.std_pixels  = get_hugging_face_loaders(self.args)
         # also gets means and stds for unnormalizing
-        print(f'Created dataset loaders using dataset in {args.dataset}')
-        print(self.args.device)
+
+        self.mae = MAE(self.args) 
+        self.mae.to(self.device)
+
+
         self.base_lr = 1.5e-4
         self.lr = self.base_lr * (self.args.batch_size/256)
         self.optimizer =torch.optim.AdamW(self.mae.parameters(), lr=self.lr)
         
         self.checkpoint_dir = args.checkpoint_dir
+        
 
 
-    def train_one_epoch(self, epoch, model, dataloader, optimizer, device, print_freq):
+    def train_one_epoch(self,model, dataloader, optimizer, device, print_freq):
         model.train()
         total_loss = 0
         iter_loss = 0
+
         for i, (images, _) in enumerate(dataloader):
             images = images.to(self.device)
+
             #forward pass through the MAE model
             reconstructed, mask_indices = model(images)
 
+            # calculate loss (assuming your model's loss method is appropriately defined)
             loss = model.loss(images, reconstructed, mask_indices)
             iter_loss += loss.item()
             total_loss += loss.item()
@@ -60,17 +71,16 @@ class Trainer:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
+
+            print("Batch: ",i," Time: ",datetime.datetime.now(), " Loss: ",loss.item())
+
+
             if (i + 1) % print_freq == 0:
                 average_loss = iter_loss / print_freq
                 print(f'Batch: {i + 1}, Time: {datetime.datetime.now()}, Average Train Loss: {average_loss}')
                 iter_loss = 0
                 # val_loss = self.validate(model, self.val_loader, self.device)
                 # print(f' Iteration {i + 1}, Train Loss: {loss.item()} | Validation Loss:{val_loss}')
-        if epoch % 10 == 0:
-            reconstructed = model.reconstruct_image(reconstructed)
-            targets_grid = torchvision.utils.make_grid(reconstructed.detach().cpu(), nrow=8)
-            t2img(targets_grid.detach().cpu()).show()
 
         return total_loss / (i+1)
     
@@ -87,14 +97,17 @@ class Trainer:
                 count += 1
 
         return total_loss / count
+    
 
-    def train_model(self, print_freq=10):
+
+
+    def train_model(self, print_freq=100):
         model = self.mae
         num_epochs = self.args.n_epochs
         
-        print("start training")
+   
         for epoch in range(num_epochs):
-            train_loss = self.train_one_epoch(epoch, model, self.train_loader, self.optimizer, self.device, print_freq)
+            train_loss = self.train_one_epoch(model, self.train_loader, self.optimizer, self.device, print_freq)
             if epoch == 0:
                 print(f'Training MAE: \n device{self.args.device} \n dataset {self.args.dataset}')
 
@@ -104,3 +117,12 @@ class Trainer:
             #  model checkpoint every epoch 
             checkpoint_path = os.path.join(self.checkpoint_dir, f'model.pth')
             torch.save(model.state_dict(), checkpoint_path)
+            # print(f"Checkpoint saved to {checkpoint_path}")
+
+
+
+
+
+
+
+

@@ -1,5 +1,5 @@
 import torch
-from src.mae_code.mae_parts import Encoder
+from mae_parts import Encoder
 import torch.nn as nn
 
 class DefaultArgs:

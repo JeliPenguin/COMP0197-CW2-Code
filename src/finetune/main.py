@@ -1,6 +1,6 @@
 import argparse
 import torch
-from pipeline import Pipeline
+from src.finetune.pipeline import Pipeline
 
 
 def args_parser():
@@ -25,7 +25,9 @@ def args_parser():
     parser.add_argument('--batch_print_period', type=int, default=5, help='Batch print period')
     parser.add_argument('--n_epoch', type=int, default=5, help='Batch print period')
     parser.add_argument('--cuda', action='store_true', help='Use CUDA')
-    parser.add_argument("--save_name",type=str,required=True,help="Finetune checkpoint save name")
+    parser.add_argument('--finetune_percentage', type=float, default=1.0,help='Percentage of finetune dataset to train on')
+    parser.add_argument("--refinetune",action='store_true', help='Re-finetune model')
+    parser.add_argument("--save_name",type=str, default="finetune.pt")
     return parser.parse_args()
 
     
@@ -38,8 +40,10 @@ if __name__ == "__main__":
 
     print(f'Initialized Pipeline')
 
-    print(f"FINE TUNE DECODER {args.n_epoch} EPOCH")
-    pipeline.train(n_epoch=args.n_epoch, freeze_encoder=False, freeze_decoder=False)
-
+    if args.refinetune:
+        print(f"FINE TUNE DECODER {args.n_epoch} EPOCH")
+        pipeline.train(n_epoch=args.n_epoch, freeze_encoder=False, freeze_decoder=False)
+    else:
+        pipeline.load_model_checkpoint("./models/trained_models/100_epoch.pt")
     pipeline.test()
     pipeline.show_examples()

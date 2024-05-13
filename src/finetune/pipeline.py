@@ -3,13 +3,12 @@ from src.finetune.mae_parts import Encoder
 import torch
 import os
 import json
-from src.loaders.oxfordpets_loader import custom_augmented_oxford_pets
+from src.finetune.dataloaders import custom_augmented_oxford_pets
 import time
-import os
 import time
 import torch
 import torch.nn as nn
-import src.utils.core as core
+import src.finetune.core as core
 import torchmetrics as TM
 import torchvision
 from src.utils.dice import dice_loss
@@ -253,6 +252,7 @@ class Pipeline():
 
         # Inspecting input images
         input_grid = torchvision.utils.make_grid(test_inputs, nrow=8)
+
         core.t2img(input_grid).show()
 
         # Inspecting the segmentation masks corresponding to the input images
@@ -273,7 +273,7 @@ class Pipeline():
         input_grid = torchvision.utils.make_grid(test_inputs, nrow=8)
         core.t2img(input_grid).show()
 
-
+        
         targets_grid = torchvision.utils.make_grid(test_targets, nrow=8)
         core.t2img(targets_grid).show()
 

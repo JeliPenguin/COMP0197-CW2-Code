@@ -2,9 +2,16 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-from src.mae_code.mae_utils import get_hugging_face_loaders, load_model,mean,std
+from src.mae_code.mae_utils import load_model
+from src.loaders.imagenet_loader import get_hugging_face_loaders,mean,std
 
-def visualize_comparisons(args,model,device):
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def visualize_comparisons(args,model):
+    #compares masked original, image, autoencoder reconstruction
+    # on a batch of images
+    
     _, test_loader, _, _ = get_hugging_face_loaders(args)
    
     model.to(device)
@@ -12,6 +19,7 @@ def visualize_comparisons(args,model,device):
     with torch.no_grad():
           batch = next(iter(test_loader))
           images = batch[0].to(device)
+
 
           decoder_output, mask_idxs = model(images)
           reconstructions = model.reconstruct_image(decoder_output)
@@ -30,9 +38,9 @@ def visualize_comparisons(args,model,device):
 
           # no. of rows in plot is the no. of samples in batch
           for i in range(batch_size):
-              imshow(masked_images[i], axes[i, 0],device)
-              imshow(reconstructions[i], axes[i, 1],device)
-              imshow(images[i], axes[i, 2],device)
+              imshow(masked_images[i], axes[i, 0])
+              imshow(reconstructions[i], axes[i, 1])
+              imshow(images[i], axes[i, 2])
 
           # Labeling columns
           columns = ['Masked Image', 'Reconstruction', 'Original Image']
@@ -43,7 +51,7 @@ def visualize_comparisons(args,model,device):
           plt.show()
            # Show only one batch for demonstration
 
-def imshow(img, ax, device):
+def imshow(img, ax):
     # Helper function to unnormalize and show an image on a given Axes object.
     mean_t = mean.view(3, 1, 1).to(device)
     std_t = std.view(3, 1, 1).to(device)
@@ -52,17 +60,19 @@ def imshow(img, ax, device):
     ax.imshow(np.transpose(npimg, (1, 2, 0)))  # Convert from Tensor image
     ax.axis('off')  # Hide axes ticks
 
-
 def view_mae_results(model_path):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model, old_args = load_model(model_path,device)
-    old_args.batch_size = 4
-    old_args.imagenet = args.imagenet
+    model, old_args = load_model(model_path)
 
-    visualize_comparisons(old_args, model)
+    old_args.imagenet = True
+    print(old_args)
+
+    visualize_comparisons(old_args,model)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', help='path to a model file')
+    parser.add_argument('--model', default="./models/MAE/00000", help='path to a model file')
+
     args = parser.parse_args()
+
     view_mae_results(args.model)
