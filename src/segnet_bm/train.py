@@ -6,14 +6,11 @@ import os
 import time
 import torch
 import torch.nn as nn
-import src.loaders.core as core
+import src.utils.core as core
 import src.segnet_bm.metrics as metrics
 import src.segnet_bm.segnet as segnet
 import src.loaders.fetch_Oxford_IIIT_Pets as OxfordPets
-
-USE_TORCH_METRICS = True
-if USE_TORCH_METRICS:
-    import torchmetrics as TM
+import torchmetrics as TM
 
 class SegNetTrainer():
     def __init__(self,model,save_name,batch_size=16) -> None:
@@ -84,7 +81,6 @@ class SegNetTrainer():
                 (time.time() - start_time)/running_samples,
                 running_samples,
                 running_loss / (batch_idx + 1),
-            torch.save(self.model.state_dict(), os.path.join(self.save_path,"segnet.pt"))
         ))
                 
         self.training_loss.append(running_loss / (batch_idx + 1))
@@ -126,8 +122,8 @@ class SegNetTrainer():
                 model_predictions = self.model(test_inputs.to(self.device))
                 labels = test_targets.to(self.device)
 
-                targets = targets.squeeze(dim=1)
-                val_loss = self.criterion(model_predictions, targets)
+                squeezed_label = labels.squeeze(dim=1)
+                val_loss = self.criterion(model_predictions, squeezed_label)
 
                 # print("Predictions Shape: {}".format(predictions.shape))
                 predictions = nn.Softmax(dim=1)(model_predictions)
@@ -138,25 +134,18 @@ class SegNetTrainer():
                 # Create prediction for the mask:
                 predicted_mask = predicted_labels.to(torch.float)
 
-                # Calculate performance metrics
-                custom_iou = metrics.IoUMetric(predicted_labels, labels)
+                iou = TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND).to(self.device)
+                iou_accuracy = iou(predicted_mask,labels)
 
-                if USE_TORCH_METRICS:
-                    iou = TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND).to(self.device)
-                    iou_accuracy = iou(predicted_mask,labels)
+                pixel_metric = TM.classification.MulticlassAccuracy(3, average='micro').to(self.device)
+                pixel_accuracy = pixel_metric(predicted_labels,labels)
 
-                    pixel_metric = TM.classification.MulticlassAccuracy(3, average='micro').to(self.device)
-                    pixel_accuracy = pixel_metric(predicted_labels,labels)
+                report = f'[Epoch: {epoch:02d}] : Accuracy[Pixel: {pixel_accuracy:.4f}, IoU: {iou_accuracy:.4f}]'
+                print(report)
 
-                    report = f'[Epoch: {epoch:02d}] : Accuracy[Pixel: {pixel_accuracy:.4f}, IoU: {iou_accuracy:.4f}, Custom-IoU: {custom_iou:.4f}]'
-                    print(report)
-
-                    self.validation_loss.append(val_loss.item())
-                    self.iou.append(iou_accuracy.item())
-                    self.pixel_accuracy.append(pixel_accuracy.item())
-                else:
-                    report = f'[Epoch: {epoch:02d}] : Custom-IoU: {custom_iou:.4f}]'
-                    print(report)
+                self.validation_loss.append(val_loss.item())
+                self.iou.append(iou_accuracy.item())
+                self.pixel_accuracy.append(pixel_accuracy.item())
 
             torch.save(self.model.state_dict(), os.path.join(self.save_path, "segnet.pt"))
 

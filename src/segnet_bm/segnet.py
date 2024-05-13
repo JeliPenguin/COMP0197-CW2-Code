@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import src.loaders.fetch_Oxford_IIIT_Pets as OxfordPets
-import src.loaders.core as core
+import src.utils.core as core
 
 # Model definition. We use a SegNet-Basic model with some minor tweaks.
 # Our input images are 128x128.

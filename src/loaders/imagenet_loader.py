@@ -39,7 +39,7 @@ def get_hugging_face_loaders(args):
         train_dataset = load_dataset("imagenet-1k", split="train", streaming=True,trust_remote_code=True)
         test_dataset = load_dataset("imagenet-1k", split="test", streaming=True,trust_remote_code=True)
         
-    elif args.partial_imagenet:
+    elif args.partial_imagenet or args.train_mode == "pruned_pretrain":
         print("Using partial ImageNet1k")
         return get_hugging_face_partial_imagenet_loaders(args)
     else:

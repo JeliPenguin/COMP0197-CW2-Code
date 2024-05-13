@@ -193,7 +193,7 @@ class FMDP(MDP):
             for j in range(input.size(0)):
                 class_fx[label[j].item()].append(features['feats'][j, :, :, :].flatten().cpu().numpy())
                 
-        torch.save(class_fx, save_path)
+            torch.save(class_fx, save_path)
     
     def generate_target_source_features(self):
         # Generate and save features for both datasets

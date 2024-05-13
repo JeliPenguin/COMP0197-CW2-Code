@@ -3,13 +3,16 @@ import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from src.loaders.fetch_Oxford_IIIT_Pets import download_annotations,download_images,OxfordIIITPetsAugmented
-import src.loaders.core as core
+import src.utils.core as core
 import os
 
 
-mean = torch.Tensor([0.485, 0.456, 0.406])
-        
-std = torch.Tensor([0.229, 0.224, 0.225])
+mean = torch.Tensor([0.4810, 0.4490, 0.3959]) 
+std = torch.Tensor([0.2627, 0.2579, 0.2660])
+
+def custom_threshold(mask):
+    mask = torch.where(mask > 0.005, torch.tensor(0.0), torch.tensor(1.0))
+    return mask
 
 
 def custom_augmented_oxford_pets(img_size):
@@ -20,18 +23,24 @@ def custom_augmented_oxford_pets(img_size):
     root = os.getcwd()
 
     def_transform = core.transform_dict.copy()
+    def_transform["post_transform"] = transforms.Compose([
+        transforms.Normalize(mean=mean, std=std)
+    ])
+    
     def_transform["common_transform"] = transforms.Compose([
-            transforms.Resize((img_size, img_size), interpolation=transforms.InterpolationMode.NEAREST),
-            # transforms.RandomHorizontalFlip(p=0.5)
-            # transforms.Normalize(mean=mean, std=std)
-        ])
+        transforms.Resize((img_size, img_size), interpolation=transforms.InterpolationMode.NEAREST),
+        transforms.RandomHorizontalFlip(p=0.5)
+    ])
+
+    def_transform["post_target_transform"] = transforms.Compose([
+        transforms.Lambda(custom_threshold),
+    ]),
 
     trainset = OxfordIIITPetsAugmented(root = root,
                                        split="trainval",
                                        target_types="segmentation",
                                        download=True,
                                        **def_transform)
-
 
     testset = OxfordIIITPetsAugmented(root=root,
                                      split="test",

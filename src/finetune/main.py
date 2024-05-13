@@ -16,8 +16,8 @@ def args_parser():
     parser.add_argument('--no_cls_token_encoder', action='store_true', help='Exclude class token in encoder')
     parser.add_argument('--no_cls_token_decoder', action='store_true', help='Exclude class token in decoder')
     parser.add_argument('--c', type=int, default=3, help='Number of color channels')
-    parser.add_argument('--checkpoint_dir', type=str, default="./trained_models", help='Model store path')
-    parser.add_argument('--model', type=str, default="./pretrained_encoder.pt", help='Pretrained model path')
+    parser.add_argument('--checkpoint_dir', type=str, default="./models/trained_models", help='Model store path')
+    parser.add_argument('--model', type=str, default="./models/pretrained_encoder", help='Pretrained model path')
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size')
     parser.add_argument('--report_rate', type=int, default=2, help='Report rate')
     parser.add_argument('--skip_conn', action='store_true', help='Use skip connections')
@@ -25,6 +25,7 @@ def args_parser():
     parser.add_argument('--batch_print_period', type=int, default=5, help='Batch print period')
     parser.add_argument('--n_epoch', type=int, default=5, help='Batch print period')
     parser.add_argument('--cuda', action='store_true', help='Use CUDA')
+    parser.add_argument("--save_name",type=str,required=True,help="Finetune checkpoint save name")
     return parser.parse_args()
 
     

@@ -57,6 +57,7 @@ def args_parser():
     parser.add_argument('--batch_size',type=int, default=16)
 
     parser.add_argument("--imagenet",action='store_true')
+    parser.add_argument("--partial_imagenet",action='store_true')
     parser.add_argument("--download_imagenet",action='store_true')
     # add an argument for a differnt test batch size
 

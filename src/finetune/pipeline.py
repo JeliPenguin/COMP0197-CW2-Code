@@ -9,10 +9,10 @@ import os
 import time
 import torch
 import torch.nn as nn
-import src.loaders.core as core
+import src.utils.core as core
 import torchmetrics as TM
 import torchvision
-from src.finetune.utils import dice_loss
+from src.utils.dice import dice_loss
 from torch import optim
 import matplotlib.pyplot as plt
 import argparse
@@ -40,12 +40,15 @@ class DefaultArgs:
         self.skip_conn = False
         self.output_display_period = 10
         self.batch_print_period = 5
+        self.save_name = "finetune"
 
 class Pipeline():
     def __init__(self,args=DefaultArgs()) -> None:
         self.device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
+        print("Using device: ",self.device)
         self.report_rate = args.report_rate
         self.batch_size = args.batch_size
+        self.save_name = args.save_name
         self.model = MAE(args)
         self.args = args
         if args.model:
@@ -157,7 +160,7 @@ class Pipeline():
             print(f"[Elapsed time:{T:0.1f}][Epoch: {epoch:02d}][Learning Rate: {optimizer.param_groups[0]['lr']}]")
             training_loss, training_dice = self.train_model(self.model, epoch, train_loader, criterion, optimizer)
 
-            torch.save(self.model.state_dict(), os.path.join(self.args.checkpoint_dir, "finetuned_model.pt"))
+            torch.save(self.model.state_dict(), os.path.join(self.args.checkpoint_dir, f"{self.save_name}.pt"))
             with torch.inference_mode():
                 # Test set performance report #
                 self.model.eval()
@@ -182,6 +185,8 @@ class Pipeline():
             self.history["training_dice"].append(training_dice)
             self.history["validation_dice"].append(validation_dice.detach().cpu())
             self.history["pixel_accuracy"].append(pixel_accuracy.detach().cpu())
+            torch.save(self.model.state_dict(), os.path.join(self.history, "history.pt"))
+
     
     def plot_history(self):
         epochs = range(1, len(self.history['iou']) + 1)

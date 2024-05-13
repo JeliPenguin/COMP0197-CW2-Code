@@ -93,9 +93,7 @@ transform_dict = args_to_dict(
     pre_transform=T.ToTensor(),
     pre_target_transform=T.ToTensor(),
     common_transform=T.Compose([
-        ToDevice(get_device()),
         T.Resize((128, 128), interpolation=T.InterpolationMode.NEAREST),
-        # Random Horizontal Flip as data augmentation.
         T.RandomHorizontalFlip(p=0.5),
     ]),
     post_transform=T.Compose([
