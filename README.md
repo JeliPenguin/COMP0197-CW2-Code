@@ -83,13 +83,29 @@ To test our SegNet model, use the following command:
 python .\src\segnet_bm\test.py
 ```
 
-
 ### Interactive Notbook
 You may also wish to use our interactive Jupyter Notebook ```view_segnet.ipynb``` to view training metrics and for testing the models
 
 
+## (OEQ) MAE Skip Connection
+We have added skip connections to the decoder and the detection heads to make predictions.
 
-## ImageNet Pruning for efficient pretraining
+### Testing
+Use the following command:
+```
+python .\src\oeq_mae_decoder_conv_layer\main.py
+```
+
+### Re-finetuning
+If you don't want to use our finetuned mode and wish to re-finetune, use the following command:
+```
+python .\src\oeq_mae_decoder_conv_layer\main.py --refinetune
+```
+
+### Interactive Notebook
+Please see ```oeq.ipynb``` which visualizes test results, example outputs and the metrics monitored during training
+
+## (OEQ) ImageNet Pruning for efficient pretraining
 
 The current code offers both Label Mapping based and Feature Mapping based Dataset Pruning as proposed in https://arxiv.org/abs/2310.08782. The code is adopted from the paper's original repo https://github.com/OPTML-Group/DP4TL 
 
