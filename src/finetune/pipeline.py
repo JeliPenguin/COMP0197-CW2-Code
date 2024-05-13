@@ -124,7 +124,8 @@ class Pipeline():
                 running_loss / (batch_idx + 1),
                 running_dice / (batch_idx + 1),
                 ))     
-
+            torch.save(self.model.state_dict(), os.path.join(self.save_dir, f"{self.save_name}.pt"))
+            torch.save(self.history, os.path.join(self.save_dir, f"{self.save_name}_history.pt"))
         if epoch % self.args.output_display_period == 0:
             mask_pred = (outputs > 0.5).float()
             targets_grid = torchvision.utils.make_grid(mask_pred.detach().cpu(), nrow=8)

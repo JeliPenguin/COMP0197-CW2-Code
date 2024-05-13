@@ -10,6 +10,7 @@ setup(
     #     'torchvision==0.17',
     #     'torchmetrics',
     #     'datasets',
+    #     'matplotlib'
     # ],
     python_requires='>=3.10',
     packages=find_packages(),

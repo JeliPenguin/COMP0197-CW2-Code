@@ -1,10 +1,37 @@
 import src.utils.core as core
 import src.segnet_bm.segnet as segnet
-import src.loaders.fetch_Oxford_IIIT_Pets as OxfordPets
+from src.loaders.oxfordpets_loader import augmented
 import torch
 import torch.nn as nn
 import torchvision
 import torchmetrics as TM
+import matplotlib.pyplot as plt
+
+# Define the two models [this assumes you have saved models from training in the output dir]
+
+dataset_proportions = [0.5,0.8,1]
+
+models = [
+    {'name': "SegNet Standard Model 0.5",
+        'model': segnet.ImageSegmentation(kernel_size=3),
+        'checkpt': "./models/segnet/segnet_standard_0.5/segnet.pt"},
+    {'name': "SegNet depthwise separable convolution Model 0.5",
+            'model': segnet.ImageSegmentationDSC(kernel_size=3),
+            'checkpt': "./models/segnet/segnet_dsc_0.5/segnet.pt"},  
+    {'name': "SegNet Standard Model 0.8",
+        'model': segnet.ImageSegmentation(kernel_size=3),
+        'checkpt': "./models/segnet/segnet_standard_0.8/segnet.pt"},
+    {'name': "SegNet depthwise separable convolution Model 0.8",
+            'model': segnet.ImageSegmentationDSC(kernel_size=3),
+            'checkpt': "./models/segnet/segnet_dsc_0.8/segnet.pt"},  
+    {'name': "SegNet Standard Model 1",
+        'model': segnet.ImageSegmentation(kernel_size=3),
+        'checkpt': "./models/segnet/segnet_standard_1/segnet.pt"},
+    {'name': "SegNet depthwise separable convolution Model 1",
+            'model': segnet.ImageSegmentationDSC(kernel_size=3),
+            'checkpt': "./models/segnet/segnet_dsc_1/segnet.pt"},  
+
+]
 
 
 def test_performance(model_dict,test_loader):
@@ -61,7 +88,8 @@ def show_examples(model_dict,test_loader):
 
     # Inspecting input images
     input_grid = torchvision.utils.make_grid(test_inputs, nrow=8)
-    core.t2img(input_grid).show()
+    plt.imshow(core.t2img(input_grid))
+    plt.show()
 
     # Inspecting the segmentation masks corresponding to the input images
     #
@@ -69,9 +97,10 @@ def show_examples(model_dict,test_loader):
     # into a float tensor with values in the range [0.0 to 1.0]. However, the
     # mask tensor has the values (0, 1, 2), so we divide by 2.0 to normalize.
     targets_grid = torchvision.utils.make_grid(test_targets / 2.0, nrow=8)
-    core.t2img(targets_grid).show()
+    plt.imshow(core.t2img(targets_grid))
 
-
+    plt.show()
+    
     # Get segmentation mask predicted by the model:
     model = model_dict['model']
     core.to_device(model)
@@ -87,45 +116,35 @@ def show_examples(model_dict,test_loader):
     predicted_mask = predicted_labels.to(torch.float)
 
     predicted_mask_grid = torchvision.utils.make_grid(predicted_mask / 2.0, nrow=8)
-    core.t2img(predicted_mask_grid ).show()
+    
+    plt.imshow(core.t2img(predicted_mask_grid))
+
+    plt.show()
+
+
+def test_segnet(model):
+    _, testset = augmented()
+    
+    test_loader = torch.utils.data.DataLoader(testset,
+                                             batch_size=16,
+                                             shuffle=False)
+
+    # Load the two models:
+    core.load_model_from_checkpoint(model['model'],model['checkpt'])
+    
+    with torch.inference_mode():
+        # Accuracy of the model
+        test_performance(model,test_loader)
+
+        # Dislplay some examples of predicitons + ground truth:
+        show_examples(model,test_loader)
 
 
 def test_all_segnets():
     # Create loader for test data:
-
-   _, testset = OxfordPets.augmented()
-
-   test_loader = torch.utils.data.DataLoader(testset,
-                                             batch_size=16,
-                                             shuffle=False)
-
-
-   # Define the two models [this assumes you have saved models from training in the output dir]
-   model_1 = {'name': "SegNet Standard Model",
-            'model': segnet.ImageSegmentation(kernel_size=3),
-            'checkpt': "./models/segnet/segnet_standard/segnet.pt"}
-
-   model_2 = {'name': "SegNet depthwise separable convolution Model",
-               'model': segnet.ImageSegmentationDSC(kernel_size=3),
-               'checkpt': "./models/segnet/segnet_dsc/segnet.pt"}
-
-
-    # Load the two models:
-   core.load_model_from_checkpoint(model_1['model'],model_1['checkpt'])
-   core.load_model_from_checkpoint(model_2['model'],model_2['checkpt'])
-
-   with torch.inference_mode():
-
-        # Accuracy of the model 1
-        test_performance(model_1,test_loader)
-
-        # Accuracy of the model 2
-        test_performance(model_2,test_loader)
-
-        # Dislplay some examples of predicitons + ground truth:
-        show_examples(model_1,test_loader)
-
-        show_examples(model_2,test_loader)
+    for model in models:
+        test_segnet(model)
+   
 
 
 if __name__ == '__main__':

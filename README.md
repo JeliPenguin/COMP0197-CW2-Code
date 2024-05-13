@@ -1,9 +1,18 @@
 # COMP0197-Applied Deep Learning
 
-## Downloading Model Checkpoints
-Please use this link to download all our trained model checkpoints:
+## Packages Used
+- torch==2.2
+- torchvision==0.17
+- torchmetrics
+- datasets
+- matplotlib
 
-https://liveuclac-my.sharepoint.com/:f:/r/personal/ucabs55_ucl_ac_uk/Documents/comp0197-cw2-pt/2235431/new_model?csf=1&web=1&e=LcFcpK
+## Downloading Model Checkpoints
+Please use this link to download the ```models``` folder containing all our trained model checkpoints:
+
+https://liveuclac-my.sharepoint.com/:f:/g/personal/ucabs55_ucl_ac_uk/EsZ7Fl-MzORPgHm_M0AHgaEB_bhD33sP7qiPo-DQtfvdpw?e=7OQIil
+
+After finish downloading, please place the ```model``` within the project root directory
 
 
 ## Install your project in editable mode
@@ -40,12 +49,23 @@ Or through our interactive Jupyter Notebook ```view_mae_examples.ipynb```.
 
 ## Finetuning MAE
 
-### View Finetuning Results
-To see test results of the finetuned semantic segmentation model, you can use the following command:
+### Finetuning Pipeline
+You may wish to use our already finetuned model, to do so, use:
 ```
+python .\src\finetune\main.py
+```
+This will test the finetuned model and output example semantic segmentations.
 
+### Re-finetune a model
+To finetune our pre-trained MAE, use the following command
 ```
-Or through our interactive Jupyter Notebook ```view_mae_examples.ipynb```, which also visualizes the metrics monitored during training.
+python .\src\finetune\main.py --refinetune [--finetune_percentage <percentage of dataset to finetune on>] [--n_epoch] ...
+```
+This command will finetune a model, test the model and show example output of semantic segmentations.
+
+### Interactive Notebook
+
+You can also use our interactive Jupyter Notebook ```view_mae_examples.ipynb```, which visualizes the metrics monitored during training as well
 
 
 ## Fully Supervised SegNet
@@ -58,7 +78,10 @@ python src/segnet_bm/train.py [--epochs <number of epochs, default 100>] [--data
 This will train a standard SegNet model and a SegNet with Depthwise Separable Convolution
 
 ### Testing
-
+To test our SegNet model, use the following command:
+```
+python .\src\segnet_bm\test.py
+```
 
 
 ### Interactive Notbook
@@ -90,6 +113,8 @@ If you have already pruned previously, then you can ignore the ```--reprune``` t
 
 
 ### Pre-training with Dataset Pruning
+Use the following command:
 ```
 python .\src\mae_code\run_mae.py --train_mode pruned_pretrain
 ```
+Then you can use the existing pipeline mentioned before to finetune this model, test and view results.
