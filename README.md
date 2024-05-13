@@ -12,7 +12,7 @@ Please use this link to download the ```models``` folder containing all our trai
 
 https://liveuclac-my.sharepoint.com/:f:/g/personal/ucabs55_ucl_ac_uk/EsZ7Fl-MzORPgHm_M0AHgaEB_bhD33sP7qiPo-DQtfvdpw?e=7OQIil
 
-After finish downloading, please place the ```model``` within the project root directory
+After finish downloading, please unzip and place the ```model``` folder within the project root directory
 
 
 ## Install your project in editable mode
@@ -85,9 +85,6 @@ To test our SegNet model, use the following command:
 ```
 python .\src\segnet_bm\test.py
 ```
-
-### Interactive Notbook
-You may also wish to use our interactive Jupyter Notebook ```view_segnet.ipynb``` to view training metrics and for testing the models
 
 
 ## (OEQ) MAE Skip Connection

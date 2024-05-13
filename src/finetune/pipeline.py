@@ -56,7 +56,6 @@ class Pipeline():
             self.model.encoder = self.load_encoder(args.model)
         self.model.to(self.device)
         print("LOADED ENCODER")
-        print("Finetuning on dataset proportion: ",args.finetune_percentage)
         trainset, testset = custom_augmented_oxford_pets(args.img_size,args.finetune_percentage)
         self.train_loader = torch.utils.data.DataLoader(trainset,
                                                     batch_size=self.batch_size,
@@ -136,6 +135,7 @@ class Pipeline():
 
     def train(self, n_epoch, freeze_encoder = True, freeze_decoder = False):
         # Freeze Model according to training selection
+        print("Finetuning on dataset proportion: ",self.args.finetune_percentage)
         for param in self.model.decoder.parameters():
             param.requires_grad = not freeze_decoder 
         for param in self.model.encoder.parameters():

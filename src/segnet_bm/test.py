@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # Define the two models [this assumes you have saved models from training in the output dir]
 
-dataset_proportions = [0.1,0.2,0.5,0.8,1]
+dataset_proportions = [0.05,0.1,0.5,0.8,1]
 
 def test_performance(model_dict,test_loader):
 

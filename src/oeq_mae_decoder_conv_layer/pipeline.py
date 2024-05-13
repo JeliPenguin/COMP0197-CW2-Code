@@ -125,14 +125,19 @@ class Pipeline():
             core.t2img(targets_grid).show()
         return running_loss / (batch_idx + 1), running_dice / (batch_idx + 1)
 
-    def train(self, n_epoch):
+    def train(self, n_epoch, freeze_encoder = True, freeze_decoder = False):
+        # Freeze Model according to training selection
+        for param in self.model.decoder.parameters():
+            param.requires_grad = not freeze_decoder 
+        for param in self.model.encoder.parameters():
+            param.requires_grad = not freeze_encoder 
 
         train_loader, test_loader = self.train_loader, self.test_loader
         criterion = nn.BCELoss().to(self.device)
 
         (test_inputs, test_targets) = next(iter(test_loader))
 
-        iou = TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.DoubleClasses.BACKGROUND).to(self.device)
+        iou = TM.classification.MulticlassJaccardIndex(3, average='micro', ignore_index=core.TrimapClasses.BACKGROUND).to(self.device)
         pixel_metric = TM.classification.MulticlassAccuracy(3, average='micro').to(self.device)
         learning_rate = 1e-3
         optimizer = optim.Adam(self.model.parameters(),
@@ -152,12 +157,12 @@ class Pipeline():
             print(f"[Elapsed time:{T:0.1f}][Epoch: {epoch:02d}][Learning Rate: {optimizer.param_groups[0]['lr']}]")
             training_loss, training_dice = self.train_model(self.model, epoch, train_loader, criterion, optimizer)
 
-            torch.save(self.model.state_dict(), os.path.join(self.args.checkpoint_dir, "finetuned_model.pt"))
+            torch.save(self.model.state_dict(), os.path.join(self.save_dir, f"{self.save_name}.pt"))
             with torch.inference_mode():
                 # Test set performance report #
                 self.model.eval()
 
-                model_predictions, _ = self.model(test_inputs.to(self.device))
+                model_predictions = self.model(test_inputs.to(self.device))
                 labels = test_targets.to(self.device)
                 # compute the Dice score
                 validation_loss = criterion(model_predictions, labels.float())
@@ -177,6 +182,9 @@ class Pipeline():
             self.history["training_dice"].append(training_dice)
             self.history["validation_dice"].append(validation_dice.detach().cpu())
             self.history["pixel_accuracy"].append(pixel_accuracy.detach().cpu())
+
+            torch.save(self.model.state_dict(), os.path.join(self.save_dir, f"{self.save_name}.pt"))
+            torch.save(self.history, os.path.join(self.save_dir, f"{self.save_name}_history.pt"))
 
     def plot_history(self):
         epochs = range(1, len(self.history['iou']) + 1)
