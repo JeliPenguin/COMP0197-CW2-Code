@@ -7,11 +7,12 @@ args = args_parser()
 args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 for p in dataset_proportions:
-    # segnet_dsc_training(epochs=1,dataset_proportion=p)
-    # standard_segnet_training(epochs=1,dataset_proportion=p)
+    segnet_dsc_training(epochs=50,dataset_proportion=p)
+    standard_segnet_training(epochs=50,dataset_proportion=p)
     
     args.finetune_percentage = p
     args.save_name = f"mae_finetune_{p}"
     args.refinetune = True
+    args.n_epoch = 50
     
     do_fine_tune(args)
