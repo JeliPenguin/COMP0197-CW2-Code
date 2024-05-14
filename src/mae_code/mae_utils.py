@@ -1,7 +1,6 @@
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset, random_split
-import numpy as np
 import json 
 import os 
 from datasets import load_dataset
@@ -9,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 from src.mae_code.model import MAE
+from src.utils.core import load_model_from_checkpoint
 
 mean = torch.Tensor([0.485, 0.456, 0.406]) # imagenet
 std = torch.Tensor([0.229, 0.224, 0.225]) # imagenet
@@ -321,5 +321,7 @@ def load_model(model_path):
     # args.mask_ratio = 0
     
     model = MAE(args)  
-    model.load_state_dict(torch.load(os.path.join(model_path,"model.pth")))
+    # model.load_state_dict(torch.load(os.path.join(model_path,"model.pth"),map_location=torch.device('cpu')))
+    load_model_from_checkpoint(model,os.path.join(model_path,"model.pth"))
+    print("Successfully Loaded")
     return model, args

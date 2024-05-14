@@ -68,7 +68,7 @@ This command will finetune a model, test the model and show example output of se
 
 ### Interactive Notebook
 
-You can also use our interactive Jupyter Notebook ```view_mae_examples.ipynb```, which visualizes the metrics monitored during training as well
+You can also use our interactive Jupyter Notebook ```mae_finetune.ipynb```, which visualizes the metrics monitored during training as well
 
 
 ## Fully Supervised SegNet

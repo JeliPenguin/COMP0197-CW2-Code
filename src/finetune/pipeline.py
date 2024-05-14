@@ -15,6 +15,7 @@ from src.utils.dice import dice_loss
 from torch import optim
 import matplotlib.pyplot as plt
 import argparse
+from src.utils.core import load_model_from_checkpoint
 
 class DefaultArgs:
     def __init__(self):
@@ -77,7 +78,9 @@ class Pipeline():
         args = argparse.Namespace(**model_config)
     
         encoder = Encoder(args)
-        encoder.load_state_dict(torch.load(model_checkpoint_dir))
+        # encoder.load_state_dict(torch.load(model_checkpoint_dir,map_location=torch.device('cpu')))
+
+        load_model_from_checkpoint(encoder,model_checkpoint_dir)
 
         return encoder
     
@@ -274,7 +277,9 @@ class Pipeline():
         core.t2img(targets_grid).show()
 
     def load_model_checkpoint(self, path="finetuned_model.pt"):
-        self.model.load_state_dict(torch.load(path))
+        # self.model.load_state_dict(torch.load(path,map_location=torch.device('cpu')))
+        load_model_from_checkpoint(self.model,path)
+        print("Successfully Loaded")
 
     def show_examples(self):
         (test_inputs, test_targets) = next(iter(self.test_loader))

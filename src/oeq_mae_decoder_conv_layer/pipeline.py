@@ -16,6 +16,7 @@ import torchvision
 from src.oeq_mae_decoder_conv_layer.utils import dice_loss
 from torch import optim
 import matplotlib.pyplot as plt
+from src.utils.core import load_model_from_checkpoint
 
 class DefaultArgs:
     def __init__(self):
@@ -70,7 +71,9 @@ class Pipeline():
         args = argparse.Namespace(**model_config)
     
         encoder = Encoder(args)
-        encoder.load_state_dict(torch.load(model_checkpoint_dir))
+        # encoder.load_state_dict(torch.load(model_checkpoint_dir))
+
+        load_model_from_checkpoint(encoder,model_checkpoint_dir)
 
         return encoder
     
@@ -260,7 +263,9 @@ class Pipeline():
         core.t2img(targets_grid).show()
 
     def load_model_checkpoint(self, path="finetuned_model.pt"):
-        self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoint_dir,path)))
+        # self.model.load_state_dict(torch.load(os.path.join(self.args.checkpoint_dir,path)))
+        load_model_from_checkpoint(self.model,os.path.join(self.args.checkpoint_dir,path))
+        print("Loaded Model")
 
     def show_examples(self):
         (test_inputs, test_targets) = next(iter(self.test_loader))
